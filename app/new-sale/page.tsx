@@ -52,8 +52,7 @@ export default function NewSalePage() {
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [staffName, setStaffName] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] =
-    useState<string>("Bank Transfer");
+  const [paymentMethod, setPaymentMethod] = useState<string>("Bank Transfer");
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
 
   const [errors, setErrors] = useState<FormError>({});
@@ -213,6 +212,7 @@ export default function NewSalePage() {
           <span className="item-count">{items.length}</span>
         </div>
 
+        {/* Desktop column headers — hidden on mobile */}
         <div className="items-table-header">
           <span style={{ flex: "2.5" }}>Description</span>
           <span style={{ flex: "1.5" }}>Serial / IMEI</span>
@@ -225,64 +225,140 @@ export default function NewSalePage() {
         <div className="items-list">
           {items.map((item, i) => (
             <div key={item._key} className="item-row">
-              <div className="item-field" style={{ flex: "2.5" }}>
-                <input
-                  className={`field-input item-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
-                  placeholder="e.g. MacBook Pro M4"
-                  value={item.description}
-                  onChange={(e) => updateItem(item._key, "description", e.target.value)}
-                />
-                {errors[`item_desc_${i}`] && (
-                  <span className="field-error">{errors[`item_desc_${i}`]}</span>
-                )}
+              {/* ── Desktop row layout ── */}
+              <div className="item-row-desktop">
+                <div className="item-field" style={{ flex: "2.5" }}>
+                  <input
+                    className={`field-input item-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
+                    placeholder="e.g. MacBook Pro M4"
+                    value={item.description}
+                    onChange={(e) => updateItem(item._key, "description", e.target.value)}
+                  />
+                  {errors[`item_desc_${i}`] && (
+                    <span className="field-error">{errors[`item_desc_${i}`]}</span>
+                  )}
+                </div>
+                <div className="item-field" style={{ flex: "1.5" }}>
+                  <input
+                    className="field-input item-input"
+                    placeholder="SN:12345 (optional)"
+                    value={item.serial}
+                    onChange={(e) => updateItem(item._key, "serial", e.target.value)}
+                  />
+                </div>
+                <div className="item-field" style={{ flex: "0.8" }}>
+                  <input
+                    className={`field-input item-input text-center${errors[`item_qty_${i}`] ? " input-error" : ""}`}
+                    type="number"
+                    value={item.qty}
+                    onChange={(e) =>
+                      updateItem(item._key, "qty", Math.max(1, parseInt(e.target.value) || 1))
+                    }
+                  />
+                </div>
+                <div className="item-field" style={{ flex: "1.2" }}>
+                  <input
+                    className={`field-input item-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
+                    type="number"
+                    min={0}
+                    step={100}
+                    placeholder="0"
+                    value={item.unit_price === 0 ? "" : item.unit_price}
+                    onChange={(e) =>
+                      updateItem(item._key, "unit_price", parseFloat(e.target.value) || 0)
+                    }
+                  />
+                  {errors[`item_price_${i}`] && (
+                    <span className="field-error">{errors[`item_price_${i}`]}</span>
+                  )}
+                </div>
+                <div className="item-amount" style={{ flex: "1.2" }}>
+                  {formatNGN(item.qty * item.unit_price)}
+                </div>
+                <button
+                  className="remove-btn"
+                  onClick={() => removeItem(item._key)}
+                  aria-label={`Remove item ${i + 1}`}
+                  disabled={items.length === 1}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              <div className="item-field" style={{ flex: "1.5" }}>
-                <input
-                  className="field-input item-input"
-                  placeholder="SN:12345 (optional)"
-                  value={item.serial}
-                  onChange={(e) => updateItem(item._key, "serial", e.target.value)}
-                />
+
+              {/* ── Mobile card layout ── */}
+              <div className="item-row-mobile">
+                <div className="mobile-item-top">
+                  <div className="field" style={{ flex: 1 }}>
+                    <label className="field-label">Description</label>
+                    <input
+                      className={`field-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
+                      placeholder="e.g. MacBook Pro M4"
+                      value={item.description}
+                      onChange={(e) => updateItem(item._key, "description", e.target.value)}
+                    />
+                    {errors[`item_desc_${i}`] && (
+                      <span className="field-error">{errors[`item_desc_${i}`]}</span>
+                    )}
+                  </div>
+                  <button
+                    className="remove-btn remove-btn-mobile"
+                    onClick={() => removeItem(item._key)}
+                    aria-label={`Remove item ${i + 1}`}
+                    disabled={items.length === 1}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Serial / IMEI (optional)</label>
+                  <input
+                    className="field-input"
+                    placeholder="SN:12345"
+                    value={item.serial}
+                    onChange={(e) => updateItem(item._key, "serial", e.target.value)}
+                  />
+                </div>
+
+                <div className="mobile-item-row">
+                  <div className="field" style={{ flex: "0 0 80px" }}>
+                    <label className="field-label">Qty</label>
+                    <input
+                      className={`field-input text-center${errors[`item_qty_${i}`] ? " input-error" : ""}`}
+                      type="number"
+                      value={item.qty}
+                      onChange={(e) =>
+                        updateItem(item._key, "qty", Math.max(1, parseInt(e.target.value) || 1))
+                      }
+                    />
+                  </div>
+                  <div className="field" style={{ flex: 1 }}>
+                    <label className="field-label">Unit Price (₦)</label>
+                    <input
+                      className={`field-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
+                      type="number"
+                      min={0}
+                      step={100}
+                      placeholder="0"
+                      value={item.unit_price === 0 ? "" : item.unit_price}
+                      onChange={(e) =>
+                        updateItem(item._key, "unit_price", parseFloat(e.target.value) || 0)
+                      }
+                    />
+                    {errors[`item_price_${i}`] && (
+                      <span className="field-error">{errors[`item_price_${i}`]}</span>
+                    )}
+                  </div>
+                  <div className="mobile-amount-block">
+                    <span className="field-label">Amount</span>
+                    <span className="mobile-amount-value">{formatNGN(item.qty * item.unit_price)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="item-field" style={{ flex: "0.8" }}>
-                <input
-                  className={`field-input item-input text-center${errors[`item_qty_${i}`] ? " input-error" : ""}`}
-                  type="number"
-                  value={item.qty}
-                  onChange={(e) =>
-                    updateItem(item._key, "qty", Math.max(1, parseInt(e.target.value) || 1))
-                  }
-                />
-              </div>
-              <div className="item-field" style={{ flex: "1.2" }}>
-                <input
-                  className={`field-input item-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
-                  type="number"
-                  min={0}
-                  step={100}
-                  placeholder="0"
-                  value={item.unit_price === 0 ? "" : item.unit_price}
-                  onChange={(e) =>
-                    updateItem(item._key, "unit_price", parseFloat(e.target.value) || 0)
-                  }
-                />
-                {errors[`item_price_${i}`] && (
-                  <span className="field-error">{errors[`item_price_${i}`]}</span>
-                )}
-              </div>
-              <div className="item-amount" style={{ flex: "1.2" }}>
-                {formatNGN(item.qty * item.unit_price)}
-              </div>
-              <button
-                className="remove-btn"
-                onClick={() => removeItem(item._key)}
-                aria-label={`Remove item ${i + 1}`}
-                disabled={items.length === 1}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
             </div>
           ))}
         </div>
@@ -342,7 +418,7 @@ export default function NewSalePage() {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          margin-bottom: 40px;
+          margin-bottom: 32px;
           gap: 16px;
         }
         .page-eyebrow {
@@ -400,7 +476,7 @@ export default function NewSalePage() {
           font-size: 13px;
           padding: 11px 14px;
           border-radius: var(--radius-md);
-          margin-bottom: 28px;
+          margin-bottom: 24px;
         }
 
         /* ── Form sections ── */
@@ -408,15 +484,15 @@ export default function NewSalePage() {
           background: var(--surface-1);
           border: 1px solid var(--navy-border);
           border-radius: var(--radius-lg);
-          padding: 28px;
+          padding: 24px;
           margin-bottom: 16px;
         }
         .section-header {
           display: flex;
           align-items: center;
           gap: 10px;
-          margin-bottom: 22px;
-          padding-bottom: 16px;
+          margin-bottom: 20px;
+          padding-bottom: 14px;
           border-bottom: 1px solid var(--navy-border);
         }
         .section-number {
@@ -450,12 +526,12 @@ export default function NewSalePage() {
         .field-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 18px;
+          gap: 16px;
         }
         .field {
           display: flex;
           flex-direction: column;
-          gap: 7px;
+          gap: 6px;
         }
         .field-label {
           font-size: 12px;
@@ -506,13 +582,13 @@ export default function NewSalePage() {
           font-weight: 500;
         }
 
-        /* ── Items table ── */
+        /* ── Items desktop ── */
         .items-table-header {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 0 0 10px;
-          margin-bottom: 10px;
+          padding: 0 10px 10px;
+          margin-bottom: 8px;
           font-size: 11px;
           font-weight: 600;
           letter-spacing: 0.07em;
@@ -523,21 +599,29 @@ export default function NewSalePage() {
           display: flex;
           flex-direction: column;
           gap: 6px;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
         }
         .item-row {
-          display: flex;
-          align-items: flex-start;
-          gap: 8px;
           background: var(--surface-0);
           border: 1px solid var(--navy-border);
           border-radius: var(--radius-sm);
-          padding: 10px;
           transition: border-color 0.15s;
         }
         .item-row:hover {
           border-color: #c9b8a6;
         }
+
+        /* Desktop row: flex strip */
+        .item-row-desktop {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          padding: 10px;
+        }
+        .item-row-mobile {
+          display: none;
+        }
+
         .item-field {
           display: flex;
           flex-direction: column;
@@ -597,6 +681,38 @@ export default function NewSalePage() {
           opacity: 0.25;
           cursor: not-allowed;
         }
+
+        /* Mobile card internals */
+        .mobile-item-top {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        .remove-btn-mobile {
+          margin-top: 22px;
+          flex-shrink: 0;
+        }
+        .mobile-item-row {
+          display: flex;
+          align-items: flex-end;
+          gap: 10px;
+        }
+        .mobile-amount-block {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          flex-shrink: 0;
+          text-align: right;
+        }
+        .mobile-amount-value {
+          font-family: var(--font-mono);
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--text-primary);
+          white-space: nowrap;
+          padding-bottom: 10px;
+        }
+
         .add-item-btn {
           display: flex;
           align-items: center;
@@ -634,7 +750,7 @@ export default function NewSalePage() {
           display: flex;
           flex-direction: column;
           gap: 6px;
-          min-width: 280px;
+          min-width: 260px;
         }
         .total-row {
           display: flex;
@@ -670,7 +786,7 @@ export default function NewSalePage() {
           font-family: var(--font-display);
           font-size: 14px;
           font-weight: 600;
-          padding: 14px 30px;
+          padding: 14px 28px;
           border-radius: var(--radius-md);
           cursor: pointer;
           transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
@@ -702,14 +818,43 @@ export default function NewSalePage() {
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── Responsive ── */
+        /* ── Mobile breakpoint ── */
         @media (max-width: 640px) {
-          .field-grid { grid-template-columns: 1fr; }
-          .items-table-header { display: none; }
-          .item-row { flex-wrap: wrap; }
-          .form-footer { flex-direction: column; align-items: stretch; }
-          .submit-btn { width: 100%; justify-content: center; }
           .page-title { font-size: 26px; }
+          .subtotal-badge { padding: 10px 14px; }
+          .subtotal-amount { font-size: 15px; }
+
+          .form-section { padding: 16px; }
+
+          /* Customer detail fields: single column */
+          .field-grid { grid-template-columns: 1fr; gap: 14px; }
+
+          /* Items: hide desktop row, show mobile card */
+          .items-table-header { display: none; }
+          .item-row-desktop { display: none; }
+          .item-row-mobile {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 14px;
+          }
+
+          /* Footer: stack vertically */
+          .form-footer {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 20px;
+          }
+          .total-summary {
+            min-width: 0;
+            width: 100%;
+          }
+          .submit-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 16px;
+            font-size: 15px;
+          }
         }
       `}</style>
     </div>
@@ -803,7 +948,7 @@ function SuccessScreen({
           flex-direction: column;
           align-items: center;
           text-align: center;
-          padding: 56px 0 40px;
+          padding: 48px 0 40px;
           max-width: 460px;
           margin: 0 auto;
         }
@@ -838,15 +983,16 @@ function SuccessScreen({
         .success-sub {
           font-size: 13px;
           color: var(--text-secondary);
-          margin-bottom: 32px;
+          margin-bottom: 28px;
           line-height: 1.5;
         }
         .success-actions {
           display: flex;
           gap: 10px;
-          margin-bottom: 36px;
+          margin-bottom: 32px;
           flex-wrap: wrap;
           justify-content: center;
+          width: 100%;
         }
         .btn-receipt {
           display: flex;
@@ -864,11 +1010,10 @@ function SuccessScreen({
           text-decoration: none;
           transition: opacity 0.15s, transform 0.1s;
           box-shadow: 0 2px 12px rgba(232, 98, 44, 0.28);
+          flex: 1;
+          justify-content: center;
         }
-        .btn-receipt:hover {
-          opacity: 0.9;
-          transform: translateY(-1px);
-        }
+        .btn-receipt:hover { opacity: 0.9; transform: translateY(-1px); }
         .btn-new {
           display: flex;
           align-items: center;
@@ -883,16 +1028,15 @@ function SuccessScreen({
           border-radius: var(--radius-md);
           cursor: pointer;
           transition: border-color 0.15s, color 0.15s;
+          flex: 1;
+          justify-content: center;
         }
-        .btn-new:hover {
-          border-color: var(--text-muted);
-          color: var(--text-primary);
-        }
+        .btn-new:hover { border-color: var(--text-muted); color: var(--text-primary); }
         .sale-summary-card {
           background: var(--surface-1);
           border: 1px solid var(--navy-border);
           border-radius: var(--radius-lg);
-          padding: 22px 26px;
+          padding: 20px 22px;
           width: 100%;
           text-align: left;
         }
@@ -916,17 +1060,13 @@ function SuccessScreen({
           border-radius: 99px;
           letter-spacing: 0.03em;
         }
-        .summary-divider {
-          height: 1px;
-          background: var(--navy-border);
-          margin: 14px 0;
-        }
+        .summary-divider { height: 1px; background: var(--navy-border); margin: 12px 0; }
         .summary-items { display: flex; flex-direction: column; gap: 8px; }
         .summary-item {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          gap: 16px;
+          gap: 12px;
           font-size: 13px;
         }
         .summary-item-name {
@@ -934,22 +1074,12 @@ function SuccessScreen({
           display: flex;
           flex-direction: column;
           gap: 2px;
+          min-width: 0;
+          word-break: break-word;
         }
-        .summary-serial {
-          font-size: 11px;
-          color: var(--text-muted);
-          font-family: var(--font-mono);
-        }
-        .summary-item-right {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-shrink: 0;
-        }
-        .summary-qty {
-          font-size: 12px;
-          color: var(--text-muted);
-        }
+        .summary-serial { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+        .summary-item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .summary-qty { font-size: 12px; color: var(--text-muted); }
         .summary-total-row {
           display: flex;
           justify-content: space-between;
@@ -958,11 +1088,13 @@ function SuccessScreen({
           font-weight: 600;
           color: var(--text-primary);
         }
-        .summary-total-amount {
-          font-size: 20px;
-          letter-spacing: -0.02em;
-        }
+        .summary-total-amount { font-size: 20px; letter-spacing: -0.02em; }
         .mono { font-family: var(--font-mono); }
+
+        @media (max-width: 640px) {
+          .success-wrap { padding: 32px 0 32px; }
+          .success-title { font-size: 26px; }
+        }
       `}</style>
     </div>
   );
