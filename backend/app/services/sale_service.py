@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import os
+from dataclasses import dataclass
 from typing import Any
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.config import settings
 from app.models import SaleDocument, SaleItemDocument
 from app.schemas import (
     CreateSaleRequest,
@@ -17,6 +16,12 @@ from app.schemas import (
 )
 from app.services.receipt_generator import ReceiptData, ReceiptItem, generate_receipt
 from app.utils import generate_invoice_number, today_str
+
+
+@dataclass(frozen=True)
+class ReceiptPdf:
+    content: bytes
+    filename: str
 
 
 def _doc_to_sale_out(doc: SaleDocument) -> SaleOut:
@@ -122,11 +127,8 @@ async def list_sales(
 async def download_receipt(
     db: AsyncIOMotorDatabase,  # type: ignore[type-arg]
     sale_id: str,
-) -> str | None:
-    """
-    Generate (or return cached) PDF receipt for a sale.
-    Returns the file path on success, None if sale not found.
-    """
+) -> ReceiptPdf | None:
+    """Generate PDF receipt bytes for a sale, or None if sale not found."""
     if not ObjectId.is_valid(sale_id):
         return None
 
@@ -137,13 +139,6 @@ async def download_receipt(
         return None
 
     doc = SaleDocument.from_dict(raw)
-
-    output_path: str = os.path.join(
-        settings.receipts_dir, f"{doc.invoice_number}.pdf"
-    )
-
-    if os.path.exists(output_path):
-        return output_path
 
     receipt_items: list[ReceiptItem] = [
         ReceiptItem(
@@ -167,4 +162,7 @@ async def download_receipt(
         subtotal=doc.subtotal,
     )
 
-    return generate_receipt(receipt_data, output_path)
+    return ReceiptPdf(
+        content=generate_receipt(receipt_data),
+        filename=f"{doc.invoice_number}.pdf",
+    )
