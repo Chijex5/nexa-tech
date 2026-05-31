@@ -5,7 +5,7 @@
       "routePrefix": "/"
     },
     "python": {
-      "entrypoint": "backend/app.py",
+      "entrypoint": "backend/main.py",
       "routePrefix": "/api/python"
     }
   }
