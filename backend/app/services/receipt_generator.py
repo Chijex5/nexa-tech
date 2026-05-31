@@ -11,6 +11,7 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
+from urllib.request import urlopen
 
 from app.config import settings
 
@@ -111,7 +112,12 @@ def _draw_header(c: canvas.Canvas) -> None:
     _fill(c, 0, _PAGE_H - header_h, _PAGE_W, header_h, _HEADER_BG)
 
     try:
-        img: ImageReader = ImageReader(settings.logo_path)
+        try:
+            img = ImageReader(settings.logo_path)
+        except Exception:
+            img = ImageReader(
+                urlopen("https://nexa-tech-seven.vercel.app/logo.png")
+            )
         logo_h: float = 30 * mm
         logo_w: float = logo_h * 1.5
         c.drawImage(
