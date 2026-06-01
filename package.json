@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "both": "npm run dev &&  cd backend && python main.py",
     "lint": "eslint"
   },
   "dependencies": {
