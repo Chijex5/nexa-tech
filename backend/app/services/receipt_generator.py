@@ -116,7 +116,7 @@ def _draw_header(c: canvas.Canvas) -> None:
             img = ImageReader(settings.logo_path)
         except Exception:
             img = ImageReader(
-                urlopen("https://nexa-tech-seven.vercel.app/logo.png")
+                urlopen("https://nexa-tech-seven.vercel.app/Logo.png")
             )
         logo_h: float = 30 * mm
         logo_w: float = logo_h * 1.5
