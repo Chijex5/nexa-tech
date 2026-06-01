@@ -61,7 +61,9 @@ function validateForm(
     }
     if (item.qty < 1) errors[`item_qty_${i}`] = "Min qty is 1.";
     if (item.unit_price <= 0)
-      errors[`item_price_${i}`] = "Enter a valid price.";
+      errors[`item_price_${i}`] = item.is_swap
+        ? "Enter a valid top-up amount."
+        : "Enter a valid price.";
   });
   return errors;
 }
@@ -82,6 +84,11 @@ export default function NewSalePage() {
     (sum, item) => sum + item.qty * item.unit_price,
     0,
   );
+  const priceColumnLabel = items.every((item) => item.is_swap)
+    ? "Top-Up Amount (₦)"
+    : items.some((item) => item.is_swap)
+      ? "Unit Price / Top-Up (₦)"
+      : "Unit Price (₦)";
 
   const addItem = useCallback(() => {
     setItems((prev) => [...prev, emptyItem()]);
@@ -245,7 +252,7 @@ export default function NewSalePage() {
           <span style={{ flex: "2.8" }}>Device</span>
           <span style={{ flex: "1.4" }}>Serial / IMEI</span>
           <span style={{ flex: "0.7", textAlign: "center" }}>Qty</span>
-          <span style={{ flex: "1.2", textAlign: "right" }}>Unit Price (₦)</span>
+          <span style={{ flex: "1.2", textAlign: "right" }}>{priceColumnLabel}</span>
           <span style={{ flex: "1.2", textAlign: "right" }}>Amount</span>
           <span style={{ width: "36px" }} />
         </div>
@@ -351,9 +358,13 @@ export default function NewSalePage() {
                     />
                   </div>
 
-                  {/* Price col */}
+                  {/* Price / top-up amount col */}
                   <div className="item-field" style={{ flex: "1.2" }}>
+                    {item.is_swap && (
+                      <span className="swap-price-label">Top-Up Amount</span>
+                    )}
                     <input
+                      aria-label={item.is_swap ? "Top-Up Amount (₦)" : "Unit Price (₦)"}
                       className={`field-input item-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
                       type="number"
                       min={0}
@@ -498,7 +509,7 @@ export default function NewSalePage() {
                     />
                   </div>
                   <div className="field" style={{ flex: 1 }}>
-                    <label className="field-label">Unit Price (₦)</label>
+                    <label className="field-label">{item.is_swap ? "Top-Up Amount (₦)" : "Unit Price (₦)"}</label>
                     <input
                       className={`field-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
                       type="number"
@@ -784,6 +795,15 @@ export default function NewSalePage() {
           display: flex;
           flex-direction: column;
           gap: 4px;
+        }
+        .swap-price-label {
+          align-self: flex-end;
+          color: var(--warning);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          line-height: 1;
+          text-transform: uppercase;
         }
 
         /* Description cell: input + swap pill side by side */
