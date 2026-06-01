@@ -236,9 +236,17 @@ def _item_description_lines(item: ReceiptItem) -> list[str]:
     return lines
 
 
+def _price_heading(items: list[ReceiptItem]) -> str:
+    if items and all(item.is_swap for item in items):
+        return "TOP-UP AMOUNT"
+    if any(item.is_swap for item in items):
+        return "UNIT PRICE / TOP-UP"
+    return "UNIT PRICE"
+
+
 def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
     col_widths: list[float] = [_CW * 0.50, _CW * 0.10, _CW * 0.20, _CW * 0.20]
-    rows: list[list[Any]] = [["DESCRIPTION", "QTY", "TOP-UP AMOUNT", "AMOUNT"]]
+    rows: list[list[Any]] = [["DESCRIPTION", "QTY", _price_heading(data.items), "AMOUNT"]]
     row_heights: list[float] = [8 * mm]
 
     for item in data.items:
