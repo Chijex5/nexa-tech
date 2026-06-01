@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ── Item schemas ──────────────────────────────────────────────────────────────
@@ -15,6 +15,21 @@ class SaleItemIn(BaseModel):
     serial: Annotated[str, Field(max_length=100)] = ""
     qty: Annotated[int, Field(ge=1)]
     unit_price: Annotated[float, Field(gt=0)]
+    is_swap: bool = False
+    swap_from_description: Annotated[str, Field(max_length=200)] = ""
+    swap_from_serial: Annotated[str, Field(max_length=100)] = ""
+
+    @model_validator(mode="after")
+    def validate_swap_details(self) -> "SaleItemIn":
+        if not self.is_swap:
+            return self
+        if not self.serial.strip():
+            raise ValueError("serial is required when is_swap is true")
+        if not self.swap_from_description.strip():
+            raise ValueError("swap_from_description is required when is_swap is true")
+        if not self.swap_from_serial.strip():
+            raise ValueError("swap_from_serial is required when is_swap is true")
+        return self
 
 
 class SaleItemOut(BaseModel):
@@ -25,6 +40,9 @@ class SaleItemOut(BaseModel):
     qty: int
     unit_price: float
     amount: float
+    is_swap: bool
+    swap_from_description: str
+    swap_from_serial: str
 
 
 # ── Sale schemas ──────────────────────────────────────────────────────────────

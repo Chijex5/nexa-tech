@@ -22,7 +22,16 @@ function makeKey(): string {
 }
 
 function emptyItem(): LineItem {
-  return { _key: makeKey(), description: "", serial: "", qty: 1, unit_price: 0 };
+  return {
+    _key: makeKey(),
+    description: "",
+    serial: "",
+    qty: 1,
+    unit_price: 0,
+    is_swap: false,
+    swap_from_description: "",
+    swap_from_serial: "",
+  };
 }
 
 type FormError = Partial<Record<string, string>>;
@@ -31,7 +40,7 @@ function validateForm(
   customerName: string,
   customerPhone: string,
   staffName: string,
-  items: LineItem[]
+  items: LineItem[],
 ): FormError {
   const errors: FormError = {};
   if (!customerName.trim()) errors.customerName = "Customer name is required.";
@@ -42,8 +51,17 @@ function validateForm(
   items.forEach((item, i) => {
     if (!item.description.trim())
       errors[`item_desc_${i}`] = "Description required.";
+    if (item.is_swap) {
+      if (!item.serial.trim())
+        errors[`item_serial_${i}`] = "New device serial is required for swaps.";
+      if (!item.swap_from_description.trim())
+        errors[`item_swap_desc_${i}`] = "Swap-from device is required.";
+      if (!item.swap_from_serial.trim())
+        errors[`item_swap_serial_${i}`] = "Swap-from serial is required.";
+    }
     if (item.qty < 1) errors[`item_qty_${i}`] = "Min qty is 1.";
-    if (item.unit_price <= 0) errors[`item_price_${i}`] = "Enter a valid price.";
+    if (item.unit_price <= 0)
+      errors[`item_price_${i}`] = "Enter a valid price.";
   });
   return errors;
 }
@@ -62,7 +80,7 @@ export default function NewSalePage() {
 
   const subtotal = items.reduce(
     (sum, item) => sum + item.qty * item.unit_price,
-    0
+    0,
   );
 
   const addItem = useCallback(() => {
@@ -70,18 +88,24 @@ export default function NewSalePage() {
   }, []);
 
   const removeItem = useCallback((key: string) => {
-    setItems((prev) => (prev.length > 1 ? prev.filter((i) => i._key !== key) : prev));
+    setItems((prev) =>
+      prev.length > 1 ? prev.filter((i) => i._key !== key) : prev,
+    );
   }, []);
 
   const updateItem = useCallback(
-    (key: string, field: keyof SaleItemIn, value: string | number) => {
+    (
+      key: string,
+      field: keyof SaleItemIn,
+      value: string | number | boolean,
+    ) => {
       setItems((prev) =>
         prev.map((item) =>
-          item._key === key ? { ...item, [field]: value } : item
-        )
+          item._key === key ? { ...item, [field]: value } : item,
+        ),
       );
     },
-    []
+    [],
   );
 
   const handleSubmit = useCallback(async () => {
@@ -97,7 +121,15 @@ export default function NewSalePage() {
         customer_phone: customerPhone,
         staff_name: staffName,
         payment_method: paymentMethod,
-        items: items.map(({ _key: _k, ...rest }) => rest),
+        items: items.map((item) => ({
+          description: item.description,
+          serial: item.serial,
+          qty: item.qty,
+          unit_price: item.unit_price,
+          is_swap: item.is_swap,
+          swap_from_description: item.is_swap ? item.swap_from_description : "",
+          swap_from_serial: item.is_swap ? item.swap_from_serial : "",
+        })),
       };
       const result = await createSale(payload);
       setSavedSale(result.sale);
@@ -139,8 +171,19 @@ export default function NewSalePage() {
 
       {apiError && (
         <div className="alert-error" role="alert">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
           </svg>
           {apiError}
         </div>
@@ -154,7 +197,9 @@ export default function NewSalePage() {
         </div>
         <div className="field-grid">
           <div className="field">
-            <label className="field-label" htmlFor="customer_name">Full Name</label>
+            <label className="field-label" htmlFor="customer_name">
+              Full Name
+            </label>
             <input
               id="customer_name"
               className={`field-input${errors.customerName ? " input-error" : ""}`}
@@ -163,10 +208,14 @@ export default function NewSalePage() {
               onChange={(e) => setCustomerName(e.target.value)}
               autoComplete="off"
             />
-            {errors.customerName && <span className="field-error">{errors.customerName}</span>}
+            {errors.customerName && (
+              <span className="field-error">{errors.customerName}</span>
+            )}
           </div>
           <div className="field">
-            <label className="field-label" htmlFor="customer_phone">Phone Number</label>
+            <label className="field-label" htmlFor="customer_phone">
+              Phone Number
+            </label>
             <input
               id="customer_phone"
               className={`field-input${errors.customerPhone ? " input-error" : ""}`}
@@ -175,10 +224,14 @@ export default function NewSalePage() {
               onChange={(e) => setCustomerPhone(e.target.value)}
               type="tel"
             />
-            {errors.customerPhone && <span className="field-error">{errors.customerPhone}</span>}
+            {errors.customerPhone && (
+              <span className="field-error">{errors.customerPhone}</span>
+            )}
           </div>
           <div className="field">
-            <label className="field-label" htmlFor="staff_name">Handled By</label>
+            <label className="field-label" htmlFor="staff_name">
+              Handled By
+            </label>
             <input
               id="staff_name"
               className={`field-input${errors.staffName ? " input-error" : ""}`}
@@ -186,10 +239,14 @@ export default function NewSalePage() {
               value={staffName}
               onChange={(e) => setStaffName(e.target.value)}
             />
-            {errors.staffName && <span className="field-error">{errors.staffName}</span>}
+            {errors.staffName && (
+              <span className="field-error">{errors.staffName}</span>
+            )}
           </div>
           <div className="field">
-            <label className="field-label" htmlFor="payment_method">Payment Method</label>
+            <label className="field-label" htmlFor="payment_method">
+              Payment Method
+            </label>
             <select
               id="payment_method"
               className="field-input field-select"
@@ -197,7 +254,9 @@ export default function NewSalePage() {
               onChange={(e) => setPaymentMethod(e.target.value)}
             >
               {PAYMENT_METHODS.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
             </select>
           </div>
@@ -214,10 +273,12 @@ export default function NewSalePage() {
 
         {/* Desktop column headers — hidden on mobile */}
         <div className="items-table-header">
-          <span style={{ flex: "2.5" }}>Description</span>
-          <span style={{ flex: "1.5" }}>Serial / IMEI</span>
+          <span style={{ flex: "2.5" }}>Device / Swap Details</span>
+          <span style={{ flex: "1.5" }}>New Serial / IMEI</span>
           <span style={{ flex: "0.8", textAlign: "center" }}>Qty</span>
-          <span style={{ flex: "1.2", textAlign: "right" }}>Unit Price (₦)</span>
+          <span style={{ flex: "1.2", textAlign: "right" }}>
+            Unit Price (₦)
+          </span>
           <span style={{ flex: "1.2", textAlign: "right" }}>Amount</span>
           <span style={{ width: "32px" }} />
         </div>
@@ -227,24 +288,89 @@ export default function NewSalePage() {
             <div key={item._key} className="item-row">
               {/* ── Desktop row layout ── */}
               <div className="item-row-desktop">
-                <div className="item-field" style={{ flex: "2.5" }}>
+                <div
+                  className="item-field device-field"
+                  style={{ flex: "2.5" }}
+                >
+                  <label className="swap-toggle">
+                    <input
+                      type="checkbox"
+                      checked={item.is_swap}
+                      onChange={(e) =>
+                        updateItem(item._key, "is_swap", e.target.checked)
+                      }
+                    />
+                    <span>Device swap</span>
+                  </label>
                   <input
                     className={`field-input item-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
-                    placeholder="e.g. MacBook Pro M4"
+                    placeholder={
+                      item.is_swap
+                        ? "New device e.g. iPhone 17 Pro Max 1TB"
+                        : "e.g. MacBook Pro M4"
+                    }
                     value={item.description}
-                    onChange={(e) => updateItem(item._key, "description", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(item._key, "description", e.target.value)
+                    }
                   />
                   {errors[`item_desc_${i}`] && (
-                    <span className="field-error">{errors[`item_desc_${i}`]}</span>
+                    <span className="field-error">
+                      {errors[`item_desc_${i}`]}
+                    </span>
+                  )}
+                  {item.is_swap && (
+                    <div className="swap-fields">
+                      <input
+                        className={`field-input item-input${errors[`item_swap_desc_${i}`] ? " input-error" : ""}`}
+                        placeholder="Swap from e.g. iPhone 15 Pro 256GB"
+                        value={item.swap_from_description}
+                        onChange={(e) =>
+                          updateItem(
+                            item._key,
+                            "swap_from_description",
+                            e.target.value,
+                          )
+                        }
+                      />
+                      <input
+                        className={`field-input item-input${errors[`item_swap_serial_${i}`] ? " input-error" : ""}`}
+                        placeholder="Swap-from serial / IMEI"
+                        value={item.swap_from_serial}
+                        onChange={(e) =>
+                          updateItem(
+                            item._key,
+                            "swap_from_serial",
+                            e.target.value,
+                          )
+                        }
+                      />
+                      {(errors[`item_swap_desc_${i}`] ||
+                        errors[`item_swap_serial_${i}`]) && (
+                        <span className="field-error">
+                          {errors[`item_swap_desc_${i}`] ??
+                            errors[`item_swap_serial_${i}`]}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="item-field" style={{ flex: "1.5" }}>
                   <input
-                    className="field-input item-input"
-                    placeholder="SN:12345 (optional)"
+                    className={`field-input item-input${errors[`item_serial_${i}`] ? " input-error" : ""}`}
+                    placeholder={
+                      item.is_swap ? "New serial / IMEI" : "SN:12345 (optional)"
+                    }
                     value={item.serial}
-                    onChange={(e) => updateItem(item._key, "serial", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(item._key, "serial", e.target.value)
+                    }
                   />
+                  {errors[`item_serial_${i}`] && (
+                    <span className="field-error">
+                      {errors[`item_serial_${i}`]}
+                    </span>
+                  )}
                 </div>
                 <div className="item-field" style={{ flex: "0.8" }}>
                   <input
@@ -252,7 +378,11 @@ export default function NewSalePage() {
                     type="number"
                     value={item.qty}
                     onChange={(e) =>
-                      updateItem(item._key, "qty", Math.max(1, parseInt(e.target.value) || 1))
+                      updateItem(
+                        item._key,
+                        "qty",
+                        Math.max(1, parseInt(e.target.value) || 1),
+                      )
                     }
                   />
                 </div>
@@ -265,11 +395,17 @@ export default function NewSalePage() {
                     placeholder="0"
                     value={item.unit_price === 0 ? "" : item.unit_price}
                     onChange={(e) =>
-                      updateItem(item._key, "unit_price", parseFloat(e.target.value) || 0)
+                      updateItem(
+                        item._key,
+                        "unit_price",
+                        parseFloat(e.target.value) || 0,
+                      )
                     }
                   />
                   {errors[`item_price_${i}`] && (
-                    <span className="field-error">{errors[`item_price_${i}`]}</span>
+                    <span className="field-error">
+                      {errors[`item_price_${i}`]}
+                    </span>
                   )}
                 </div>
                 <div className="item-amount" style={{ flex: "1.2" }}>
@@ -281,7 +417,17 @@ export default function NewSalePage() {
                   aria-label={`Remove item ${i + 1}`}
                   disabled={items.length === 1}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M18 6L6 18M6 6l12 12" />
                   </svg>
                 </button>
@@ -291,15 +437,33 @@ export default function NewSalePage() {
               <div className="item-row-mobile">
                 <div className="mobile-item-top">
                   <div className="field" style={{ flex: 1 }}>
-                    <label className="field-label">Description</label>
+                    <label className="field-label">New Device</label>
+                    <label className="swap-toggle mobile-swap-toggle">
+                      <input
+                        type="checkbox"
+                        checked={item.is_swap}
+                        onChange={(e) =>
+                          updateItem(item._key, "is_swap", e.target.checked)
+                        }
+                      />
+                      <span>Device swap</span>
+                    </label>
                     <input
                       className={`field-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
-                      placeholder="e.g. MacBook Pro M4"
+                      placeholder={
+                        item.is_swap
+                          ? "e.g. iPhone 17 Pro Max 1TB"
+                          : "e.g. MacBook Pro M4"
+                      }
                       value={item.description}
-                      onChange={(e) => updateItem(item._key, "description", e.target.value)}
+                      onChange={(e) =>
+                        updateItem(item._key, "description", e.target.value)
+                      }
                     />
                     {errors[`item_desc_${i}`] && (
-                      <span className="field-error">{errors[`item_desc_${i}`]}</span>
+                      <span className="field-error">
+                        {errors[`item_desc_${i}`]}
+                      </span>
                     )}
                   </div>
                   <button
@@ -308,21 +472,89 @@ export default function NewSalePage() {
                     aria-label={`Remove item ${i + 1}`}
                     disabled={items.length === 1}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
                       <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
 
                 <div className="field">
-                  <label className="field-label">Serial / IMEI (optional)</label>
+                  <label className="field-label">
+                    New Serial / IMEI{item.is_swap ? "" : " (optional)"}
+                  </label>
                   <input
-                    className="field-input"
-                    placeholder="SN:12345"
+                    className={`field-input${errors[`item_serial_${i}`] ? " input-error" : ""}`}
+                    placeholder={
+                      item.is_swap ? "New serial / IMEI" : "SN:12345"
+                    }
                     value={item.serial}
-                    onChange={(e) => updateItem(item._key, "serial", e.target.value)}
+                    onChange={(e) =>
+                      updateItem(item._key, "serial", e.target.value)
+                    }
                   />
+                  {errors[`item_serial_${i}`] && (
+                    <span className="field-error">
+                      {errors[`item_serial_${i}`]}
+                    </span>
+                  )}
                 </div>
+
+                {item.is_swap && (
+                  <div className="mobile-swap-fields">
+                    <div className="field">
+                      <label className="field-label">Swap From Device</label>
+                      <input
+                        className={`field-input${errors[`item_swap_desc_${i}`] ? " input-error" : ""}`}
+                        placeholder="e.g. iPhone 15 Pro 256GB"
+                        value={item.swap_from_description}
+                        onChange={(e) =>
+                          updateItem(
+                            item._key,
+                            "swap_from_description",
+                            e.target.value,
+                          )
+                        }
+                      />
+                      {errors[`item_swap_desc_${i}`] && (
+                        <span className="field-error">
+                          {errors[`item_swap_desc_${i}`]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="field">
+                      <label className="field-label">
+                        Swap From Serial / IMEI
+                      </label>
+                      <input
+                        className={`field-input${errors[`item_swap_serial_${i}`] ? " input-error" : ""}`}
+                        placeholder="Swap-from serial / IMEI"
+                        value={item.swap_from_serial}
+                        onChange={(e) =>
+                          updateItem(
+                            item._key,
+                            "swap_from_serial",
+                            e.target.value,
+                          )
+                        }
+                      />
+                      {errors[`item_swap_serial_${i}`] && (
+                        <span className="field-error">
+                          {errors[`item_swap_serial_${i}`]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mobile-item-row">
                   <div className="field" style={{ flex: "0 0 80px" }}>
@@ -332,7 +564,11 @@ export default function NewSalePage() {
                       type="number"
                       value={item.qty}
                       onChange={(e) =>
-                        updateItem(item._key, "qty", Math.max(1, parseInt(e.target.value) || 1))
+                        updateItem(
+                          item._key,
+                          "qty",
+                          Math.max(1, parseInt(e.target.value) || 1),
+                        )
                       }
                     />
                   </div>
@@ -346,16 +582,24 @@ export default function NewSalePage() {
                       placeholder="0"
                       value={item.unit_price === 0 ? "" : item.unit_price}
                       onChange={(e) =>
-                        updateItem(item._key, "unit_price", parseFloat(e.target.value) || 0)
+                        updateItem(
+                          item._key,
+                          "unit_price",
+                          parseFloat(e.target.value) || 0,
+                        )
                       }
                     />
                     {errors[`item_price_${i}`] && (
-                      <span className="field-error">{errors[`item_price_${i}`]}</span>
+                      <span className="field-error">
+                        {errors[`item_price_${i}`]}
+                      </span>
                     )}
                   </div>
                   <div className="mobile-amount-block">
                     <span className="field-label">Amount</span>
-                    <span className="mobile-amount-value">{formatNGN(item.qty * item.unit_price)}</span>
+                    <span className="mobile-amount-value">
+                      {formatNGN(item.qty * item.unit_price)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -364,7 +608,17 @@ export default function NewSalePage() {
         </div>
 
         <button className="add-item-btn" onClick={addItem}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <path d="M12 5v14M5 12h14" />
           </svg>
           Add another item
@@ -402,7 +656,17 @@ export default function NewSalePage() {
             </>
           ) : (
             <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
               </svg>
@@ -871,7 +1135,16 @@ function SuccessScreen({
   return (
     <div className="success-wrap">
       <div className="success-icon" aria-hidden="true">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="26"
+          height="26"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
           <path d="M22 4L12 14.01l-3-3" />
         </svg>
@@ -879,7 +1152,8 @@ function SuccessScreen({
       <p className="success-eyebrow">Invoice created</p>
       <h2 className="success-title">Sale Saved!</h2>
       <p className="success-sub">
-        <span className="mono">{sale.invoice_number}</span> &middot; {sale.customer_name} &middot; {formatNGN(sale.subtotal)}
+        <span className="mono">{sale.invoice_number}</span> &middot;{" "}
+        {sale.customer_name} &middot; {formatNGN(sale.subtotal)}
       </p>
 
       <div className="success-actions">
@@ -890,14 +1164,34 @@ function SuccessScreen({
           className="btn-receipt"
           download={`${sale.invoice_number}.pdf`}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <path d="M7 10l5 5 5-5M12 15V3" />
           </svg>
           Download Receipt PDF
         </a>
         <button className="btn-new" onClick={onNewSale}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <path d="M12 5v14M5 12h14" />
           </svg>
           New Sale
@@ -907,13 +1201,16 @@ function SuccessScreen({
       <div className="sale-summary-card">
         <div className="summary-meta">
           <div className="summary-row">
-            <span>Invoice No</span><span className="mono">{sale.invoice_number}</span>
+            <span>Invoice No</span>
+            <span className="mono">{sale.invoice_number}</span>
           </div>
           <div className="summary-row">
-            <span>Date</span><span>{sale.invoice_date}</span>
+            <span>Date</span>
+            <span>{sale.invoice_date}</span>
           </div>
           <div className="summary-row">
-            <span>Handled by</span><span>{sale.staff_name}</span>
+            <span>Handled by</span>
+            <span>{sale.staff_name}</span>
           </div>
           <div className="summary-row">
             <span>Payment</span>
@@ -926,7 +1223,15 @@ function SuccessScreen({
             <div className="summary-item" key={i}>
               <div className="summary-item-name">
                 {item.description}
-                {item.serial ? <span className="summary-serial">{item.serial}</span> : null}
+                {item.is_swap ? (
+                  <span className="summary-swap">
+                    Swap from {item.swap_from_description} (
+                    {item.swap_from_serial}) to {item.description} (
+                    {item.serial})
+                  </span>
+                ) : item.serial ? (
+                  <span className="summary-serial">{item.serial}</span>
+                ) : null}
               </div>
               <div className="summary-item-right">
                 <span className="summary-qty">×{item.qty}</span>
@@ -938,7 +1243,9 @@ function SuccessScreen({
         <div className="summary-divider" />
         <div className="summary-total-row">
           <span>Total</span>
-          <span className="mono summary-total-amount">{formatNGN(sale.subtotal)}</span>
+          <span className="mono summary-total-amount">
+            {formatNGN(sale.subtotal)}
+          </span>
         </div>
       </div>
 
@@ -1078,6 +1385,7 @@ function SuccessScreen({
           word-break: break-word;
         }
         .summary-serial { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+        .summary-swap { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
         .summary-item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
         .summary-qty { font-size: 12px; color: var(--text-muted); }
         .summary-total-row {

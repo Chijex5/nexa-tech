@@ -62,6 +62,9 @@ class ReceiptItem:
     qty: int
     unit_price: float
     amount: float
+    is_swap: bool = False
+    swap_from_description: str = ""
+    swap_from_serial: str = ""
 
 
 @dataclass(frozen=True)
@@ -213,22 +216,49 @@ def _draw_customer_cards(
     return y - card_h - 8 * mm
 
 
+def _format_device(description: str, serial: str) -> str:
+    if serial:
+        return f"{description} ({serial})"
+    return description
+
+
+def _item_description_lines(item: ReceiptItem) -> list[str]:
+    if item.is_swap:
+        return [
+            "DEVICE SWAP",
+            f"From: {_format_device(item.swap_from_description, item.swap_from_serial)}",
+            f"To: {_format_device(item.description, item.serial)}",
+        ]
+
+    lines: list[str] = [item.description]
+    if item.serial:
+        lines.append(item.serial)
+    return lines
+
+
 def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
     col_widths: list[float] = [_CW * 0.50, _CW * 0.10, _CW * 0.20, _CW * 0.20]
     rows: list[list[Any]] = [["DESCRIPTION", "QTY", "UNIT PRICE", "AMOUNT"]]
+    row_heights: list[float] = [8 * mm]
 
     for item in data.items:
-        desc: str = f"{item.description}\n{item.serial}" if item.serial else item.description
+        description_lines = _item_description_lines(item)
         rows.append(
-            [desc, str(item.qty), _fmt(item.unit_price), _fmt(item.amount)]
+            [
+                "\n".join(description_lines),
+                str(item.qty),
+                _fmt(item.unit_price),
+                _fmt(item.amount),
+            ]
         )
+        row_heights.append(max(12, 5 * len(description_lines)) * mm)
 
     rows.append(["", "", "TOTAL", _fmt(data.subtotal)])
 
     n: int = len(rows)
     total_row: int = n - 1
 
-    row_heights: list[float] = [8 * mm] + [12 * mm for _ in data.items] + [10 * mm]
+    row_heights.append(10 * mm)
 
     tbl: Table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
     tbl.setStyle(

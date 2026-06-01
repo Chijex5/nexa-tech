@@ -3,6 +3,9 @@ export interface SaleItemIn {
   serial: string;
   qty: number;
   unit_price: number;
+  is_swap: boolean;
+  swap_from_description: string;
+  swap_from_serial: string;
 }
 
 export interface SaleItemOut {
@@ -11,6 +14,9 @@ export interface SaleItemOut {
   qty: number;
   unit_price: number;
   amount: number;
+  is_swap: boolean;
+  swap_from_description: string;
+  swap_from_serial: string;
 }
 
 export interface CreateSaleRequest {
