@@ -13,7 +13,16 @@ def _utc_now() -> datetime:
 class SaleItemDocument:
     """Represents a single line item as stored in MongoDB."""
 
-    __slots__ = ("description", "serial", "qty", "unit_price", "amount")
+    __slots__ = (
+        "description",
+        "serial",
+        "qty",
+        "unit_price",
+        "amount",
+        "is_swap",
+        "swap_from_description",
+        "swap_from_serial",
+    )
 
     def __init__(
         self,
@@ -21,12 +30,18 @@ class SaleItemDocument:
         qty: int,
         unit_price: float,
         serial: str = "",
+        is_swap: bool = False,
+        swap_from_description: str = "",
+        swap_from_serial: str = "",
     ) -> None:
         self.description: str = description
         self.serial: str = serial
         self.qty: int = qty
         self.unit_price: float = unit_price
         self.amount: float = round(qty * unit_price, 2)
+        self.is_swap: bool = is_swap
+        self.swap_from_description: str = swap_from_description
+        self.swap_from_serial: str = swap_from_serial
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -35,6 +50,9 @@ class SaleItemDocument:
             "qty": self.qty,
             "unit_price": self.unit_price,
             "amount": self.amount,
+            "is_swap": self.is_swap,
+            "swap_from_description": self.swap_from_description,
+            "swap_from_serial": self.swap_from_serial,
         }
 
 
@@ -88,6 +106,9 @@ class SaleDocument:
                 serial=i.get("serial", ""),
                 qty=i["qty"],
                 unit_price=i["unit_price"],
+                is_swap=i.get("is_swap", False),
+                swap_from_description=i.get("swap_from_description", ""),
+                swap_from_serial=i.get("swap_from_serial", ""),
             )
             for i in data["items"]
         ]
