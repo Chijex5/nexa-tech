@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Any
+from urllib.request import urlopen
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -11,7 +12,6 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
-from urllib.request import urlopen
 
 from app.config import settings
 
@@ -357,20 +357,18 @@ def _draw_footer(c: canvas.Canvas, y: float) -> None:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def generate_receipt(data: ReceiptData, output_path: str) -> str:
-    """
-    Generate a PDF receipt for the given sale data.
+def generate_receipt(data: ReceiptData) -> bytes:
+    """Generate a PDF receipt in memory for the given sale data.
 
     Args:
         data: Structured receipt data (no hardcoded customer info).
-        output_path: Absolute path where the PDF will be written.
 
     Returns:
-        The resolved output path.
+        The generated PDF contents as bytes.
     """
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    buffer = BytesIO()
 
-    c: canvas.Canvas = canvas.Canvas(output_path, pagesize=A4)
+    c: canvas.Canvas = canvas.Canvas(buffer, pagesize=A4)
 
     _fill(c, 0, 0, _PAGE_W, _PAGE_H, _WHITE)
     _draw_header(c)
@@ -391,4 +389,4 @@ def generate_receipt(data: ReceiptData, output_path: str) -> str:
     _draw_footer(c, y)
 
     c.save()
-    return output_path
+    return buffer.getvalue()

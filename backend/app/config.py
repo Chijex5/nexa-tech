@@ -8,7 +8,6 @@ class Settings(BaseSettings):
 
     mongodb_uri: str = "mongodb://localhost:27017"
     database_name: str = "nexatech"
-    receipts_dir: str = "./receipts"
     logo_path: str = "./assets/Logo.png"
 
 

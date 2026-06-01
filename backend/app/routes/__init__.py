@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_db
@@ -68,20 +68,22 @@ async def get_sale_endpoint(
 @router.get(
     "/{sale_id}/receipt",
     summary="Generate and download the PDF receipt for a sale.",
-    response_class=FileResponse,
+    response_class=Response,
 )
 async def get_receipt_endpoint(
     sale_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),  # type: ignore[type-arg]
-) -> FileResponse:
-    path: str | None = await download_receipt(db, sale_id)
-    if path is None:
+) -> Response:
+    receipt = await download_receipt(db, sale_id)
+    if receipt is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Sale with id '{sale_id}' not found.",
         )
-    return FileResponse(
-        path=path,
+    return Response(
+        content=receipt.content,
         media_type="application/pdf",
-        filename=path.split("/")[-1],
+        headers={
+            "Content-Disposition": f'attachment; filename="{receipt.filename}"',
+        },
     )
