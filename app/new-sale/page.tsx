@@ -61,7 +61,7 @@ function validateForm(
     }
     if (item.qty < 1) errors[`item_qty_${i}`] = "Min qty is 1.";
     if (item.unit_price <= 0)
-      errors[`item_price_${i}`] = "Enter a valid price.";
+      errors[`item_price_${i}`] = "Enter a valid top-up amount.";
   });
   return errors;
 }
@@ -245,7 +245,7 @@ export default function NewSalePage() {
           <span style={{ flex: "2.8" }}>Device</span>
           <span style={{ flex: "1.4" }}>Serial / IMEI</span>
           <span style={{ flex: "0.7", textAlign: "center" }}>Qty</span>
-          <span style={{ flex: "1.2", textAlign: "right" }}>Unit Price (₦)</span>
+          <span style={{ flex: "1.2", textAlign: "right" }}>Top-Up Amount (₦)</span>
           <span style={{ flex: "1.2", textAlign: "right" }}>Amount</span>
           <span style={{ width: "36px" }} />
         </div>
@@ -351,7 +351,7 @@ export default function NewSalePage() {
                     />
                   </div>
 
-                  {/* Price col */}
+                  {/* Top-up amount col */}
                   <div className="item-field" style={{ flex: "1.2" }}>
                     <input
                       className={`field-input item-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
@@ -498,7 +498,7 @@ export default function NewSalePage() {
                     />
                   </div>
                   <div className="field" style={{ flex: 1 }}>
-                    <label className="field-label">Unit Price (₦)</label>
+                    <label className="field-label">Top-Up Amount (₦)</label>
                     <input
                       className={`field-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
                       type="number"

@@ -238,7 +238,7 @@ def _item_description_lines(item: ReceiptItem) -> list[str]:
 
 def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
     col_widths: list[float] = [_CW * 0.50, _CW * 0.10, _CW * 0.20, _CW * 0.20]
-    rows: list[list[Any]] = [["DESCRIPTION", "QTY", "UNIT PRICE", "AMOUNT"]]
+    rows: list[list[Any]] = [["DESCRIPTION", "QTY", "TOP-UP AMOUNT", "AMOUNT"]]
     row_heights: list[float] = [8 * mm]
 
     for item in data.items:
