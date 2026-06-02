@@ -13,6 +13,7 @@ class SaleItemIn(BaseModel):
 
     description: Annotated[str, Field(min_length=1, max_length=200)]
     serial: Annotated[str, Field(max_length=100)] = ""
+    colour: Annotated[str, Field(max_length=50)] = ""
     qty: Annotated[int, Field(ge=1)]
     unit_price: Annotated[float, Field(gt=0)]
     is_swap: bool = False
@@ -37,6 +38,7 @@ class SaleItemOut(BaseModel):
 
     description: str
     serial: str
+    colour: str
     qty: int
     unit_price: float
     amount: float

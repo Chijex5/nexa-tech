@@ -37,6 +37,7 @@ def _doc_to_sale_out(doc: SaleDocument) -> SaleOut:
             SaleItemOut(
                 description=i.description,
                 serial=i.serial,
+                colour=i.colour,
                 qty=i.qty,
                 unit_price=i.unit_price,
                 amount=i.amount,
@@ -59,6 +60,7 @@ async def create_sale(
         SaleItemDocument(
             description=item.description,
             serial=item.serial,
+            colour=item.colour,
             qty=item.qty,
             unit_price=item.unit_price,
             is_swap=item.is_swap,
@@ -150,6 +152,7 @@ async def download_receipt(
         ReceiptItem(
             description=i.description,
             serial=i.serial,
+            colour=i.colour,
             qty=i.qty,
             unit_price=i.unit_price,
             amount=i.amount,

@@ -1,6 +1,7 @@
 export interface SaleItemIn {
   description: string;
   serial: string;
+  colour: string;
   qty: number;
   unit_price: number;
   is_swap: boolean;
@@ -11,6 +12,7 @@ export interface SaleItemIn {
 export interface SaleItemOut {
   description: string;
   serial: string;
+  colour: string;
   qty: number;
   unit_price: number;
   amount: number;
