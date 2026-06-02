@@ -59,12 +59,14 @@ _NOTICE: str = (
 class ReceiptItem:
     description: str
     serial: str
+    colour: str
     qty: int
     unit_price: float
     amount: float
     is_swap: bool = False
     swap_from_description: str = ""
     swap_from_serial: str = ""
+    swap_from_colour: str = ""
 
 
 @dataclass(frozen=True)
@@ -216,9 +218,14 @@ def _draw_customer_cards(
     return y - card_h - 8 * mm
 
 
-def _format_device(description: str, serial: str) -> str:
+def _format_device(description: str, serial: str, colour: str) -> str:
+    detail_parts: list[str] = []
+    if colour:
+        detail_parts.append(f"Colour: {colour}")
     if serial:
-        return f"{description} ({serial})"
+        detail_parts.append(f"Serial: {serial}")
+    if detail_parts:
+        return f"{description} ({', '.join(detail_parts)})"
     return description
 
 
@@ -226,11 +233,13 @@ def _item_description_lines(item: ReceiptItem) -> list[str]:
     if item.is_swap:
         return [
             "DEVICE SWAP",
-            f"From: {_format_device(item.swap_from_description, item.swap_from_serial)}",
-            f"To: {_format_device(item.description, item.serial)}",
+            f"From: {_format_device(item.swap_from_description, item.swap_from_serial, item.swap_from_colour)}",
+            f"To: {_format_device(item.description, item.serial, item.colour)}",
         ]
 
     lines: list[str] = [item.description]
+    if item.colour:
+        lines.append(f"Colour: {item.colour}")
     if item.serial:
         lines.append(item.serial)
     return lines

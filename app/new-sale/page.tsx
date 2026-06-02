@@ -26,11 +26,13 @@ function emptyItem(): LineItem {
     _key: makeKey(),
     description: "",
     serial: "",
+    colour: "",
     qty: 1,
     unit_price: 0,
     is_swap: false,
     swap_from_description: "",
     swap_from_serial: "",
+    swap_from_colour: "",
   };
 }
 
@@ -120,11 +122,13 @@ export default function NewSalePage() {
         items: items.map((item) => ({
           description: item.description,
           serial: item.serial,
+          colour: item.colour,
           qty: item.qty,
           unit_price: item.unit_price,
           is_swap: item.is_swap,
           swap_from_description: item.is_swap ? item.swap_from_description : "",
           swap_from_serial: item.is_swap ? item.swap_from_serial : "",
+          swap_from_colour: item.is_swap ? item.swap_from_colour : "",
         })),
       };
       const result = await createSale(payload);
@@ -242,11 +246,12 @@ export default function NewSalePage() {
 
         {/* Desktop column headers */}
         <div className="items-table-header">
-          <span style={{ flex: "2.8" }}>Device</span>
-          <span style={{ flex: "1.4" }}>Serial / IMEI</span>
-          <span style={{ flex: "0.7", textAlign: "center" }}>Qty</span>
-          <span style={{ flex: "1.2", textAlign: "right" }}>Unit Price (₦)</span>
-          <span style={{ flex: "1.2", textAlign: "right" }}>Amount</span>
+          <span style={{ flex: "2.3" }}>Device</span>
+          <span style={{ flex: "1.2" }}>Serial / IMEI</span>
+          <span style={{ flex: "1" }}>Colour</span>
+          <span style={{ flex: "0.65", textAlign: "center" }}>Qty</span>
+          <span style={{ flex: "1.15", textAlign: "right" }}>Unit Price (₦)</span>
+          <span style={{ flex: "1.15", textAlign: "right" }}>Amount</span>
           <span style={{ width: "36px" }} />
         </div>
 
@@ -268,7 +273,7 @@ export default function NewSalePage() {
 
                 <div className="item-row-inner">
                   {/* Description col */}
-                  <div className="item-field" style={{ flex: "2.8" }}>
+                  <div className="item-field" style={{ flex: "2.3" }}>
                     <div className="desc-with-toggle">
                       <input
                         className={`field-input item-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
@@ -313,6 +318,12 @@ export default function NewSalePage() {
                           value={item.swap_from_serial}
                           onChange={(e) => updateItem(item._key, "swap_from_serial", e.target.value)}
                         />
+                        <input
+                          className="field-input item-input swap-input"
+                          placeholder="Trade-in colour"
+                          value={item.swap_from_colour}
+                          onChange={(e) => updateItem(item._key, "swap_from_colour", e.target.value)}
+                        />
                         {(errors[`item_swap_desc_${i}`] || errors[`item_swap_serial_${i}`]) && (
                           <span className="field-error">
                             {errors[`item_swap_desc_${i}`] ?? errors[`item_swap_serial_${i}`]}
@@ -323,7 +334,7 @@ export default function NewSalePage() {
                   </div>
 
                   {/* Serial col */}
-                  <div className="item-field" style={{ flex: "1.4" }}>
+                  <div className="item-field" style={{ flex: "1.2" }}>
                     <input
                       className={`field-input item-input${errors[`item_serial_${i}`] ? " input-error" : ""}`}
                       placeholder={item.is_swap ? "New serial / IMEI" : "SN:12345 (opt.)"}
@@ -335,8 +346,18 @@ export default function NewSalePage() {
                     )}
                   </div>
 
+                  {/* Colour col */}
+                  <div className="item-field" style={{ flex: "1" }}>
+                    <input
+                      className="field-input item-input"
+                      placeholder="e.g. Black"
+                      value={item.colour}
+                      onChange={(e) => updateItem(item._key, "colour", e.target.value)}
+                    />
+                  </div>
+
                   {/* Qty col */}
-                  <div className="item-field" style={{ flex: "0.7" }}>
+                  <div className="item-field" style={{ flex: "0.65" }}>
                     <input
                       className={`field-input item-input text-center${errors[`item_qty_${i}`] ? " input-error" : ""}`}
                       type="number"
@@ -352,7 +373,7 @@ export default function NewSalePage() {
                   </div>
 
                   {/* Price col */}
-                  <div className="item-field" style={{ flex: "1.2" }}>
+                  <div className="item-field" style={{ flex: "1.15" }}>
                     <input
                       className={`field-input item-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
                       type="number"
@@ -370,7 +391,7 @@ export default function NewSalePage() {
                   </div>
 
                   {/* Amount */}
-                  <div className="item-amount" style={{ flex: "1.2" }}>
+                  <div className="item-amount" style={{ flex: "1.15" }}>
                     {formatNGN(item.qty * item.unit_price)}
                   </div>
 
@@ -448,6 +469,17 @@ export default function NewSalePage() {
                   {errors[`item_serial_${i}`] && <span className="field-error">{errors[`item_serial_${i}`]}</span>}
                 </div>
 
+                {/* Colour */}
+                <div className="field">
+                  <label className="field-label">Colour</label>
+                  <input
+                    className="field-input"
+                    placeholder="e.g. Black"
+                    value={item.colour}
+                    onChange={(e) => updateItem(item._key, "colour", e.target.value)}
+                  />
+                </div>
+
                 {/* Swap-from sub-card */}
                 {item.is_swap && (
                   <div className="mobile-swap-subcard">
@@ -476,6 +508,15 @@ export default function NewSalePage() {
                         onChange={(e) => updateItem(item._key, "swap_from_serial", e.target.value)}
                       />
                       {errors[`item_swap_serial_${i}`] && <span className="field-error">{errors[`item_swap_serial_${i}`]}</span>}
+                    </div>
+                    <div className="field">
+                      <label className="field-label">Colour</label>
+                      <input
+                        className="field-input"
+                        placeholder="Trade-in colour"
+                        value={item.swap_from_colour}
+                        onChange={(e) => updateItem(item._key, "swap_from_colour", e.target.value)}
+                      />
                     </div>
                   </div>
                 )}
@@ -1147,12 +1188,14 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
             <div className="summary-item" key={i}>
               <div className="summary-item-name">
                 <span>{item.description}</span>
+                {item.colour && <span className="summary-serial">Colour: {item.colour}</span>}
                 {item.is_swap ? (
                   <span className="summary-swap">
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: "inline", verticalAlign: "middle", marginRight: "3px" }}>
                       <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
                     </svg>
                     Trade-in: {item.swap_from_description} · {item.swap_from_serial}
+                    {item.swap_from_colour ? ` · ${item.swap_from_colour}` : ""}
                   </span>
                 ) : item.serial ? (
                   <span className="summary-serial">{item.serial}</span>

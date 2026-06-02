@@ -1,22 +1,26 @@
 export interface SaleItemIn {
   description: string;
   serial: string;
+  colour: string;
   qty: number;
   unit_price: number;
   is_swap: boolean;
   swap_from_description: string;
   swap_from_serial: string;
+  swap_from_colour: string;
 }
 
 export interface SaleItemOut {
   description: string;
   serial: string;
+  colour: string;
   qty: number;
   unit_price: number;
   amount: number;
   is_swap: boolean;
   swap_from_description: string;
   swap_from_serial: string;
+  swap_from_colour: string;
 }
 
 export interface CreateSaleRequest {

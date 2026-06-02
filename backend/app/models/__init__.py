@@ -16,12 +16,14 @@ class SaleItemDocument:
     __slots__ = (
         "description",
         "serial",
+        "colour",
         "qty",
         "unit_price",
         "amount",
         "is_swap",
         "swap_from_description",
         "swap_from_serial",
+        "swap_from_colour",
     )
 
     def __init__(
@@ -30,29 +32,35 @@ class SaleItemDocument:
         qty: int,
         unit_price: float,
         serial: str = "",
+        colour: str = "",
         is_swap: bool = False,
         swap_from_description: str = "",
         swap_from_serial: str = "",
+        swap_from_colour: str = "",
     ) -> None:
         self.description: str = description
         self.serial: str = serial
+        self.colour: str = colour
         self.qty: int = qty
         self.unit_price: float = unit_price
         self.amount: float = round(qty * unit_price, 2)
         self.is_swap: bool = is_swap
         self.swap_from_description: str = swap_from_description
         self.swap_from_serial: str = swap_from_serial
+        self.swap_from_colour: str = swap_from_colour
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "description": self.description,
             "serial": self.serial,
+            "colour": self.colour,
             "qty": self.qty,
             "unit_price": self.unit_price,
             "amount": self.amount,
             "is_swap": self.is_swap,
             "swap_from_description": self.swap_from_description,
             "swap_from_serial": self.swap_from_serial,
+            "swap_from_colour": self.swap_from_colour,
         }
 
 
@@ -104,11 +112,13 @@ class SaleDocument:
             SaleItemDocument(
                 description=i["description"],
                 serial=i.get("serial", ""),
+                colour=i.get("colour", ""),
                 qty=i["qty"],
                 unit_price=i["unit_price"],
                 is_swap=i.get("is_swap", False),
                 swap_from_description=i.get("swap_from_description", ""),
                 swap_from_serial=i.get("swap_from_serial", ""),
+                swap_from_colour=i.get("swap_from_colour", ""),
             )
             for i in data["items"]
         ]
