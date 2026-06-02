@@ -19,6 +19,7 @@ class SaleItemIn(BaseModel):
     is_swap: bool = False
     swap_from_description: Annotated[str, Field(max_length=200)] = ""
     swap_from_serial: Annotated[str, Field(max_length=100)] = ""
+    swap_from_colour: Annotated[str, Field(max_length=50)] = ""
 
     @model_validator(mode="after")
     def validate_swap_details(self) -> "SaleItemIn":
@@ -45,6 +46,7 @@ class SaleItemOut(BaseModel):
     is_swap: bool
     swap_from_description: str
     swap_from_serial: str
+    swap_from_colour: str
 
 
 # ── Sale schemas ──────────────────────────────────────────────────────────────

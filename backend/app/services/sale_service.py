@@ -44,6 +44,7 @@ def _doc_to_sale_out(doc: SaleDocument) -> SaleOut:
                 is_swap=i.is_swap,
                 swap_from_description=i.swap_from_description,
                 swap_from_serial=i.swap_from_serial,
+                swap_from_colour=i.swap_from_colour,
             )
             for i in doc.items
         ],
@@ -66,6 +67,7 @@ async def create_sale(
             is_swap=item.is_swap,
             swap_from_description=item.swap_from_description,
             swap_from_serial=item.swap_from_serial,
+            swap_from_colour=item.swap_from_colour,
         )
         for item in payload.items
     ]
@@ -159,6 +161,7 @@ async def download_receipt(
             is_swap=i.is_swap,
             swap_from_description=i.swap_from_description,
             swap_from_serial=i.swap_from_serial,
+            swap_from_colour=i.swap_from_colour,
         )
         for i in doc.items
     ]

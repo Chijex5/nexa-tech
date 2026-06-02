@@ -32,6 +32,7 @@ function emptyItem(): LineItem {
     is_swap: false,
     swap_from_description: "",
     swap_from_serial: "",
+    swap_from_colour: "",
   };
 }
 
@@ -134,6 +135,7 @@ export default function NewSalePage() {
           is_swap: item.is_swap,
           swap_from_description: item.is_swap ? item.swap_from_description : "",
           swap_from_serial: item.is_swap ? item.swap_from_serial : "",
+          swap_from_colour: item.is_swap ? item.swap_from_colour.trim() : "",
         })),
       };
       const result = await createSale(payload);
@@ -229,7 +231,7 @@ export default function NewSalePage() {
             <label className="field-label" htmlFor="payment_method">Payment Method</label>
             <select
               id="payment_method"
-              className="field-input field-select"
+              className="field-select field-input"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
             >
@@ -276,6 +278,7 @@ export default function NewSalePage() {
                   </div>
                 )}
 
+                {/* Main input row */}
                 <div className="item-row-inner">
                   {/* Description col */}
                   <div className="item-field" style={{ flex: "2.5" }}>
@@ -300,35 +303,6 @@ export default function NewSalePage() {
                     </div>
                     {errors[`item_desc_${i}`] && (
                       <span className="field-error">{errors[`item_desc_${i}`]}</span>
-                    )}
-
-                    {/* Swap sub-fields — from device */}
-                    {item.is_swap && (
-                      <div className="swap-subfields">
-                        <div className="swap-from-label">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="M12 19V5M5 12l7-7 7 7" />
-                          </svg>
-                          Trading in
-                        </div>
-                        <input
-                          className={`field-input item-input swap-input${errors[`item_swap_desc_${i}`] ? " input-error" : ""}`}
-                          placeholder="Device being traded e.g. iPhone 15 Pro 256GB"
-                          value={item.swap_from_description}
-                          onChange={(e) => updateItem(item._key, "swap_from_description", e.target.value)}
-                        />
-                        <input
-                          className={`field-input item-input swap-input${errors[`item_swap_serial_${i}`] ? " input-error" : ""}`}
-                          placeholder="Trade-in serial / IMEI"
-                          value={item.swap_from_serial}
-                          onChange={(e) => updateItem(item._key, "swap_from_serial", e.target.value)}
-                        />
-                        {(errors[`item_swap_desc_${i}`] || errors[`item_swap_serial_${i}`]) && (
-                          <span className="field-error">
-                            {errors[`item_swap_desc_${i}`] ?? errors[`item_swap_serial_${i}`]}
-                          </span>
-                        )}
-                      </div>
                     )}
                   </div>
 
@@ -410,6 +384,53 @@ export default function NewSalePage() {
                     </svg>
                   </button>
                 </div>
+
+                {/* ── Swap sub-fields: full-width row BELOW the main input row ── */}
+                {item.is_swap && (
+                  <div className="swap-subfields-row">
+                    <div className="swap-from-label">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 19V5M5 12l7-7 7 7" />
+                      </svg>
+                      Trading in
+                    </div>
+                    <div className="swap-subfields-inner">
+                      <div className="swap-sub-field" style={{ flex: "2.5" }}>
+                        <label className="field-label">Device being traded</label>
+                        <input
+                          className={`field-input${errors[`item_swap_desc_${i}`] ? " input-error" : ""}`}
+                          placeholder="e.g. iPhone 15 Pro 256GB"
+                          value={item.swap_from_description}
+                          onChange={(e) => updateItem(item._key, "swap_from_description", e.target.value)}
+                        />
+                        {errors[`item_swap_desc_${i}`] && (
+                          <span className="field-error">{errors[`item_swap_desc_${i}`]}</span>
+                        )}
+                      </div>
+                      <div className="swap-sub-field" style={{ flex: "1.5" }}>
+                        <label className="field-label">Trade-in Serial / IMEI</label>
+                        <input
+                          className={`field-input${errors[`item_swap_serial_${i}`] ? " input-error" : ""}`}
+                          placeholder="Trade-in serial / IMEI"
+                          value={item.swap_from_serial}
+                          onChange={(e) => updateItem(item._key, "swap_from_serial", e.target.value)}
+                        />
+                        {errors[`item_swap_serial_${i}`] && (
+                          <span className="field-error">{errors[`item_swap_serial_${i}`]}</span>
+                        )}
+                      </div>
+                      <div className="swap-sub-field" style={{ flex: "1" }}>
+                        <label className="field-label">Trade-in Colour</label>
+                        <input
+                          className="field-input"
+                          placeholder="e.g. Blue"
+                          value={item.swap_from_colour}
+                          onChange={(e) => updateItem(item._key, "swap_from_colour", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ══ MOBILE ══ */}
@@ -511,6 +532,15 @@ export default function NewSalePage() {
                         onChange={(e) => updateItem(item._key, "swap_from_serial", e.target.value)}
                       />
                       {errors[`item_swap_serial_${i}`] && <span className="field-error">{errors[`item_swap_serial_${i}`]}</span>}
+                    </div>
+                    <div className="field">
+                      <label className="field-label">Colour</label>
+                      <input
+                        className="field-input"
+                        placeholder="e.g. Blue"
+                        value={item.swap_from_colour}
+                        onChange={(e) => updateItem(item._key, "swap_from_colour", e.target.value)}
+                      />
                     </div>
                   </div>
                 )}
@@ -873,16 +903,12 @@ export default function NewSalePage() {
           background: rgba(196, 124, 26, 0.18);
         }
 
-        /* ── Swap sub-fields (desktop) ── */
-        .swap-subfields {
+        /* ── Swap sub-fields: FULL WIDTH row below the main inputs (desktop) ── */
+        .swap-subfields-row {
+          padding: 0 10px 12px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          margin-top: 8px;
-          padding: 10px 12px;
-          background: rgba(196, 124, 26, 0.05);
-          border: 1px solid rgba(196, 124, 26, 0.18);
-          border-radius: var(--radius-sm);
+          gap: 8px;
         }
         .swap-from-label {
           display: flex;
@@ -893,23 +919,21 @@ export default function NewSalePage() {
           letter-spacing: 0.09em;
           text-transform: uppercase;
           color: var(--warning);
-          margin-bottom: 4px;
         }
-        .swap-input {
-          background: transparent !important;
-          border: none !important;
-          border-bottom: 1px solid rgba(196, 124, 26, 0.25) !important;
-          border-radius: 0 !important;
-          padding: 5px 2px !important;
-          font-size: 12px;
-          box-shadow: none !important;
-          color: var(--text-secondary) !important;
+        .swap-subfields-inner {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          padding: 14px 16px;
+          background: rgba(196, 124, 26, 0.05);
+          border: 1px solid rgba(196, 124, 26, 0.18);
+          border-radius: var(--radius-sm);
         }
-        .swap-input:focus {
-          border-bottom-color: var(--warning) !important;
-          box-shadow: none !important;
+        .swap-sub-field {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
-        .swap-input::placeholder { color: var(--text-muted) !important; }
 
         /* ── Inline item inputs ── */
         .item-input {
@@ -1198,6 +1222,7 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
                       <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
                     </svg>
                     Trade-in: {item.swap_from_description} · {item.swap_from_serial}
+                    {item.swap_from_colour ? ` · ${item.swap_from_colour}` : ""}
                   </span>
                 ) : item.serial ? (
                   <span className="summary-serial">{item.serial}</span>

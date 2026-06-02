@@ -23,7 +23,7 @@
 # misc
 .DS_Store
 *.pem
-
+backend/*.pyc
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -41,3 +41,5 @@ backend/.env
 *.tsbuildinfo
 next-env.d.ts
 /venv/*
+backend/app/schemas/__pycache__/__init__.cpython-312.pyc
+backend/app/models/__pycache__/__init__.cpython-312.pyc

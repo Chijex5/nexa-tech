@@ -23,6 +23,7 @@ class SaleItemDocument:
         "is_swap",
         "swap_from_description",
         "swap_from_serial",
+        "swap_from_colour",
     )
 
     def __init__(
@@ -35,6 +36,7 @@ class SaleItemDocument:
         is_swap: bool = False,
         swap_from_description: str = "",
         swap_from_serial: str = "",
+        swap_from_colour: str = "",
     ) -> None:
         self.description: str = description
         self.serial: str = serial
@@ -45,6 +47,7 @@ class SaleItemDocument:
         self.is_swap: bool = is_swap
         self.swap_from_description: str = swap_from_description
         self.swap_from_serial: str = swap_from_serial
+        self.swap_from_colour: str = swap_from_colour
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +60,7 @@ class SaleItemDocument:
             "is_swap": self.is_swap,
             "swap_from_description": self.swap_from_description,
             "swap_from_serial": self.swap_from_serial,
+            "swap_from_colour": self.swap_from_colour,
         }
 
 
@@ -114,6 +118,7 @@ class SaleDocument:
                 is_swap=i.get("is_swap", False),
                 swap_from_description=i.get("swap_from_description", ""),
                 swap_from_serial=i.get("swap_from_serial", ""),
+                swap_from_colour=i.get("swap_from_colour", ""),
             )
             for i in data["items"]
         ]

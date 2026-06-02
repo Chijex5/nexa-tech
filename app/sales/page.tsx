@@ -15,6 +15,14 @@ function formatDate(iso: string): string {
   });
 }
 
+function formatDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-NG", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default async function SalesHistoryPage() {
   let sales: SaleListItem[] = [];
   let fetchError = "";
@@ -29,8 +37,10 @@ export default async function SalesHistoryPage() {
 
   return (
     <div>
+      {/* ── Page header ── */}
       <div className="page-header">
         <div>
+          <p className="page-eyebrow">Sales</p>
           <h1 className="page-title">Sales History</h1>
           <p className="page-sub">{sales.length} total sales recorded</p>
         </div>
@@ -42,6 +52,7 @@ export default async function SalesHistoryPage() {
         </a>
       </div>
 
+      {/* ── Stats strip ── */}
       <div className="stats-row">
         <div className="stat-card">
           <div className="stat-label">Total Sales</div>
@@ -78,52 +89,93 @@ export default async function SalesHistoryPage() {
           <a href="/new-sale" className="empty-cta">Record your first sale →</a>
         </div>
       ) : (
-        <div className="table-wrap">
-          <table className="sales-table">
-            <thead>
-              <tr>
-                <th>Invoice</th>
-                <th>Customer</th>
-                <th>Staff</th>
-                <th>Date</th>
-                <th className="right">Amount</th>
-                <th className="right">Receipt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map((sale) => (
-                <tr key={sale.id}>
-                  <td>
-                    <span className="invoice-num">{sale.invoice_number}</span>
-                  </td>
-                  <td className="customer-name">{sale.customer_name}</td>
-                  <td className="muted-text">{sale.staff_name}</td>
-                  <td className="muted-text date-cell">{formatDate(sale.created_at)}</td>
-                  <td className="right mono">{formatNGN(sale.subtotal)}</td>
-                  <td className="right">
-                    <a
-                      href={receiptUrl(sale.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="download-link"
-                      aria-label={`Download receipt for ${sale.invoice_number}`}
-                      download={`${sale.invoice_number}.pdf`}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <path d="M7 10l5 5 5-5M12 15V3" />
-                      </svg>
-                      PDF
-                    </a>
-                  </td>
+        <>
+          {/* ══ DESKTOP TABLE ══ */}
+          <div className="table-wrap desktop-only">
+            <table className="sales-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "140px" }}>Invoice</th>
+                  <th>Customer</th>
+                  <th>Staff</th>
+                  <th style={{ width: "160px" }}>Date</th>
+                  <th className="right" style={{ width: "140px" }}>Amount</th>
+                  <th className="right" style={{ width: "90px" }}>Receipt</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {sales.map((sale) => (
+                  <tr key={sale.id}>
+                    <td>
+                      <span className="invoice-num">{sale.invoice_number}</span>
+                    </td>
+                    <td className="customer-name">{sale.customer_name}</td>
+                    <td className="muted-text">{sale.staff_name}</td>
+                    <td className="muted-text date-cell">{formatDate(sale.created_at)}</td>
+                    <td className="right mono">{formatNGN(sale.subtotal)}</td>
+                    <td className="right">
+                      <a
+                        href={receiptUrl(sale.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="download-link"
+                        aria-label={`Download receipt for ${sale.invoice_number}`}
+                        download={`${sale.invoice_number}.pdf`}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <path d="M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        PDF
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ══ MOBILE CARD LIST ══ */}
+          <div className="mobile-list mobile-only">
+            {sales.map((sale) => (
+              <div key={sale.id} className="sale-card">
+                {/* Top row: invoice badge + amount */}
+                <div className="sale-card-top">
+                  <span className="invoice-num">{sale.invoice_number}</span>
+                  <span className="sale-card-amount mono">{formatNGN(sale.subtotal)}</span>
+                </div>
+
+                {/* Customer + staff */}
+                <div className="sale-card-customer">{sale.customer_name}</div>
+
+                {/* Meta row: staff · date · PDF */}
+                <div className="sale-card-meta">
+                  <span className="sale-card-staff">{sale.staff_name}</span>
+                  <span className="sale-card-dot" aria-hidden="true">·</span>
+                  <span className="sale-card-date">{formatDateShort(sale.created_at)}</span>
+                  <a
+                    href={receiptUrl(sale.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="download-link-mobile"
+                    aria-label={`Download receipt for ${sale.invoice_number}`}
+                    download={`${sale.invoice_number}.pdf`}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <path d="M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                    PDF
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <style>{`
+        /* ── Header ── */
         .page-header {
           display: flex;
           align-items: flex-start;
@@ -131,16 +183,26 @@ export default async function SalesHistoryPage() {
           margin-bottom: 28px;
           gap: 16px;
         }
+        .page-eyebrow {
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--accent);
+          margin-bottom: 4px;
+        }
         .page-title {
-          font-size: 26px;
-          font-weight: 700;
+          font-family: var(--font-serif);
+          font-size: 34px;
+          font-weight: 400;
           color: var(--text-primary);
-          letter-spacing: -0.02em;
+          letter-spacing: -0.01em;
+          line-height: 1.1;
         }
         .page-sub {
           font-size: 13px;
           color: var(--text-muted);
-          margin-top: 4px;
+          margin-top: 6px;
         }
         .new-sale-link {
           display: flex;
@@ -154,10 +216,13 @@ export default async function SalesHistoryPage() {
           padding: 10px 18px;
           border-radius: var(--radius-md);
           white-space: nowrap;
-          transition: opacity 0.15s;
+          transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
           flex-shrink: 0;
+          box-shadow: 0 2px 10px rgba(232, 98, 44, 0.28);
         }
-        .new-sale-link:hover { opacity: 0.88; }
+        .new-sale-link:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232, 98, 44, 0.35); }
+
+        /* ── Stats strip ── */
         .stats-row {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -167,9 +232,11 @@ export default async function SalesHistoryPage() {
         .stat-card {
           background: var(--surface-1);
           border: 1px solid var(--navy-border);
+          border-top: 3px solid var(--navy-border);
           border-radius: var(--radius-md);
           padding: 16px 20px;
         }
+        .stat-card:first-child { border-top-color: var(--accent); }
         .stat-label {
           font-size: 11px;
           font-weight: 600;
@@ -179,23 +246,28 @@ export default async function SalesHistoryPage() {
           margin-bottom: 8px;
         }
         .stat-value {
-          font-size: 20px;
+          font-size: 22px;
           font-weight: 700;
           color: var(--text-primary);
           letter-spacing: -0.02em;
         }
+
+        /* ── Error ── */
         .alert-error {
           display: flex;
           align-items: center;
           gap: 8px;
           background: var(--danger-dim);
           border: 1px solid var(--danger);
+          border-left: 3px solid var(--danger);
           color: var(--danger);
           font-size: 13px;
           padding: 10px 14px;
           border-radius: var(--radius-md);
           margin-bottom: 20px;
         }
+
+        /* ── Empty state ── */
         .empty-state {
           display: flex;
           flex-direction: column;
@@ -214,6 +286,8 @@ export default async function SalesHistoryPage() {
           font-weight: 500;
         }
         .empty-cta:hover { text-decoration: underline; }
+
+        /* ── Desktop table ── */
         .table-wrap {
           background: var(--surface-1);
           border: 1px solid var(--navy-border);
@@ -238,9 +312,7 @@ export default async function SalesHistoryPage() {
           border-bottom: 1px solid var(--navy-border);
         }
         .sales-table th.right,
-        .sales-table td.right {
-          text-align: right;
-        }
+        .sales-table td.right { text-align: right; }
         .sales-table td {
           padding: 13px 16px;
           border-bottom: 1px solid rgba(36, 58, 110, 0.4);
@@ -249,12 +321,10 @@ export default async function SalesHistoryPage() {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .sales-table tbody tr:last-child td {
-          border-bottom: none;
-        }
-        .sales-table tbody tr:hover td {
-          background: var(--surface-2);
-        }
+        .sales-table tbody tr:last-child td { border-bottom: none; }
+        .sales-table tbody tr:hover td { background: var(--surface-2); }
+
+        /* ── Shared elements ── */
         .invoice-num {
           font-family: var(--font-mono);
           font-size: 12px;
@@ -262,11 +332,9 @@ export default async function SalesHistoryPage() {
           background: var(--accent-dim);
           padding: 3px 8px;
           border-radius: 4px;
+          white-space: nowrap;
         }
-        .customer-name {
-          font-weight: 500;
-          letter-spacing: 0.01em;
-        }
+        .customer-name { font-weight: 500; letter-spacing: 0.01em; }
         .muted-text { color: var(--text-secondary); }
         .date-cell { font-size: 12px; }
         .mono { font-family: var(--font-mono); }
@@ -288,10 +356,98 @@ export default async function SalesHistoryPage() {
           border-color: var(--accent);
           background: var(--accent-dim);
         }
+
+        /* ── Mobile card list ── */
+        .mobile-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .sale-card {
+          background: var(--surface-1);
+          border: 1px solid var(--navy-border);
+          border-radius: var(--radius-md);
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          transition: border-color 0.15s;
+        }
+        .sale-card:hover { border-color: #c9b8a6; }
+        .sale-card-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .sale-card-amount {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text-primary);
+          letter-spacing: -0.02em;
+        }
+        .sale-card-customer {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--text-primary);
+          letter-spacing: 0.01em;
+        }
+        .sale-card-meta {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          flex-wrap: wrap;
+        }
+        .sale-card-staff,
+        .sale-card-date {
+          font-size: 12px;
+          color: var(--text-muted);
+        }
+        .sale-card-dot {
+          font-size: 12px;
+          color: var(--text-muted);
+          opacity: 0.5;
+        }
+        .download-link-mobile {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          color: var(--accent);
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 600;
+          margin-left: auto;
+          padding: 4px 10px;
+          border: 1px solid rgba(232, 98, 44, 0.3);
+          border-radius: var(--radius-sm);
+          background: var(--accent-dim);
+          transition: opacity 0.15s;
+        }
+        .download-link-mobile:hover { opacity: 0.8; }
+
+        /* ── Visibility helpers ── */
+        .desktop-only { display: block; }
+        .mobile-only  { display: none; }
+
+        /* ══ MOBILE ══ */
         @media (max-width: 640px) {
-          .stats-row { grid-template-columns: 1fr; }
-          .date-cell, .sales-table th:nth-child(3),
-          .sales-table td:nth-child(3) { display: none; }
+          .page-title { font-size: 26px; }
+          .new-sale-link { padding: 9px 14px; font-size: 12px; }
+
+          .stats-row {
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+          /* Third stat spans full width on mobile */
+          .stat-card:last-child {
+            grid-column: 1 / -1;
+          }
+          .stat-card { padding: 12px 14px; }
+          .stat-value { font-size: 18px; }
+
+          .desktop-only { display: none; }
+          .mobile-only  { display: flex; }
         }
       `}</style>
     </div>

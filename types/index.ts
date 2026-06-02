@@ -7,6 +7,7 @@ export interface SaleItemIn {
   is_swap: boolean;
   swap_from_description: string;
   swap_from_serial: string;
+  swap_from_colour: string;
 }
 
 export interface SaleItemOut {
@@ -19,6 +20,7 @@ export interface SaleItemOut {
   is_swap: boolean;
   swap_from_description: string;
   swap_from_serial: string;
+  swap_from_colour: string;
 }
 
 export interface CreateSaleRequest {

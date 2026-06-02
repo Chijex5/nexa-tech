@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 from urllib.request import urlopen
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -66,6 +67,7 @@ class ReceiptItem:
     is_swap: bool = False
     swap_from_description: str = ""
     swap_from_serial: str = ""
+    swap_from_colour: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,20 @@ class ReceiptData:
 
 def _fmt(n: float) -> str:
     return f"NGN {n:,.2f}"
+
+
+_TABLE_BODY_STYLE = ParagraphStyle(
+    "ReceiptTableBody",
+    fontName="Helvetica",
+    fontSize=8.5,
+    leading=10,
+    textColor=_BLACK,
+    wordWrap="CJK",
+)
+
+
+def _table_paragraph(lines: list[str]) -> Paragraph:
+    return Paragraph("<br/>".join(escape(line) for line in lines), _TABLE_BODY_STYLE)
 
 
 def _fill(
@@ -245,10 +261,19 @@ def _price_heading(items: list[ReceiptItem]) -> str:
     return "UNIT PRICE"
 
 
+def _item_colour_lines(item: ReceiptItem) -> list[str]:
+    if item.is_swap:
+        return [
+            f"From: {item.swap_from_colour or '-'}",
+            f"To: {item.colour or '-'}",
+        ]
+    return [item.colour or "-"]
+
+
 def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
     col_widths: list[float] = [
-        _CW * 0.42,
-        _CW * 0.13,
+        _CW * 0.37,
+        _CW * 0.18,
         _CW * 0.08,
         _CW * 0.18,
         _CW * 0.19,
@@ -256,20 +281,21 @@ def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
     rows: list[list[Any]] = [
         ["DESCRIPTION", "COLOUR", "QTY", _price_heading(data.items), "AMOUNT"]
     ]
-    row_heights: list[float] = [8 * mm]
+    row_heights: list[float | None] = [8 * mm]
 
     for item in data.items:
         description_lines = _item_description_lines(item)
+        colour_lines = _item_colour_lines(item)
         rows.append(
             [
-                "\n".join(description_lines),
-                item.colour or "—",
+                _table_paragraph(description_lines),
+                _table_paragraph(colour_lines),
                 str(item.qty),
                 _fmt(item.unit_price),
                 _fmt(item.amount),
             ]
         )
-        row_heights.append(max(12, 5 * len(description_lines)) * mm)
+        row_heights.append(None)
 
     rows.append(["", "", "", "TOTAL", _fmt(data.subtotal)])
 
@@ -293,8 +319,13 @@ def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
                 # Body
                 ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
                 ("FONTSIZE", (0, 1), (-1, -1), 8.5),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 1), (-1, -2), 4),
+                ("BOTTOMPADDING", (0, 1), (-1, -2), 4),
                 ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (1, 1), (1, -2), 8),
+                ("LEFTPADDING", (2, 1), (2, -2), 8),
+                ("ALIGN", (2, 1), (2, -2), "CENTER"),
                 # Total row
                 ("BACKGROUND", (0, total_row), (-1, total_row), _HEADER_BG),
                 ("TEXTCOLOR", (3, total_row), (-1, total_row), _WHITE),
