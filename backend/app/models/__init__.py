@@ -16,6 +16,7 @@ class SaleItemDocument:
     __slots__ = (
         "description",
         "serial",
+        "colour",
         "qty",
         "unit_price",
         "amount",
@@ -30,12 +31,14 @@ class SaleItemDocument:
         qty: int,
         unit_price: float,
         serial: str = "",
+        colour: str = "",
         is_swap: bool = False,
         swap_from_description: str = "",
         swap_from_serial: str = "",
     ) -> None:
         self.description: str = description
         self.serial: str = serial
+        self.colour: str = colour
         self.qty: int = qty
         self.unit_price: float = unit_price
         self.amount: float = round(qty * unit_price, 2)
@@ -47,6 +50,7 @@ class SaleItemDocument:
         return {
             "description": self.description,
             "serial": self.serial,
+            "colour": self.colour,
             "qty": self.qty,
             "unit_price": self.unit_price,
             "amount": self.amount,
@@ -104,6 +108,7 @@ class SaleDocument:
             SaleItemDocument(
                 description=i["description"],
                 serial=i.get("serial", ""),
+                colour=i.get("colour", ""),
                 qty=i["qty"],
                 unit_price=i["unit_price"],
                 is_swap=i.get("is_swap", False),

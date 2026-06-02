@@ -26,6 +26,7 @@ function emptyItem(): LineItem {
     _key: makeKey(),
     description: "",
     serial: "",
+    colour: "",
     qty: 1,
     unit_price: 0,
     is_swap: false,
@@ -127,6 +128,7 @@ export default function NewSalePage() {
         items: items.map((item) => ({
           description: item.description,
           serial: item.serial,
+          colour: item.colour.trim(),
           qty: item.qty,
           unit_price: item.unit_price,
           is_swap: item.is_swap,
@@ -249,11 +251,12 @@ export default function NewSalePage() {
 
         {/* Desktop column headers */}
         <div className="items-table-header">
-          <span style={{ flex: "2.8" }}>Device</span>
-          <span style={{ flex: "1.4" }}>Serial / IMEI</span>
-          <span style={{ flex: "0.7", textAlign: "center" }}>Qty</span>
-          <span style={{ flex: "1.2", textAlign: "right" }}>{priceColumnLabel}</span>
-          <span style={{ flex: "1.2", textAlign: "right" }}>Amount</span>
+          <span style={{ flex: "2.5" }}>Device</span>
+          <span style={{ flex: "1.25" }}>Serial / IMEI</span>
+          <span style={{ flex: "0.9" }}>Colour</span>
+          <span style={{ flex: "0.65", textAlign: "center" }}>Qty</span>
+          <span style={{ flex: "1.15", textAlign: "right" }}>{priceColumnLabel}</span>
+          <span style={{ flex: "1.15", textAlign: "right" }}>Amount</span>
           <span style={{ width: "36px" }} />
         </div>
 
@@ -275,7 +278,7 @@ export default function NewSalePage() {
 
                 <div className="item-row-inner">
                   {/* Description col */}
-                  <div className="item-field" style={{ flex: "2.8" }}>
+                  <div className="item-field" style={{ flex: "2.5" }}>
                     <div className="desc-with-toggle">
                       <input
                         className={`field-input item-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
@@ -330,7 +333,7 @@ export default function NewSalePage() {
                   </div>
 
                   {/* Serial col */}
-                  <div className="item-field" style={{ flex: "1.4" }}>
+                  <div className="item-field" style={{ flex: "1.25" }}>
                     <input
                       className={`field-input item-input${errors[`item_serial_${i}`] ? " input-error" : ""}`}
                       placeholder={item.is_swap ? "New serial / IMEI" : "SN:12345 (opt.)"}
@@ -342,8 +345,18 @@ export default function NewSalePage() {
                     )}
                   </div>
 
+                  {/* Colour col */}
+                  <div className="item-field" style={{ flex: "0.9" }}>
+                    <input
+                      className="field-input item-input"
+                      placeholder="e.g. Black"
+                      value={item.colour}
+                      onChange={(e) => updateItem(item._key, "colour", e.target.value)}
+                    />
+                  </div>
+
                   {/* Qty col */}
-                  <div className="item-field" style={{ flex: "0.7" }}>
+                  <div className="item-field" style={{ flex: "0.65" }}>
                     <input
                       className={`field-input item-input text-center${errors[`item_qty_${i}`] ? " input-error" : ""}`}
                       type="number"
@@ -359,7 +372,7 @@ export default function NewSalePage() {
                   </div>
 
                   {/* Price / top-up amount col */}
-                  <div className="item-field" style={{ flex: "1.2" }}>
+                  <div className="item-field" style={{ flex: "1.15" }}>
                     {item.is_swap && (
                       <span className="swap-price-label">Top-Up Amount</span>
                     )}
@@ -381,7 +394,7 @@ export default function NewSalePage() {
                   </div>
 
                   {/* Amount */}
-                  <div className="item-amount" style={{ flex: "1.2" }}>
+                  <div className="item-amount" style={{ flex: "1.15" }}>
                     {formatNGN(item.qty * item.unit_price)}
                   </div>
 
@@ -457,6 +470,17 @@ export default function NewSalePage() {
                     onChange={(e) => updateItem(item._key, "serial", e.target.value)}
                   />
                   {errors[`item_serial_${i}`] && <span className="field-error">{errors[`item_serial_${i}`]}</span>}
+                </div>
+
+                {/* Colour */}
+                <div className="field">
+                  <label className="field-label">Colour</label>
+                  <input
+                    className="field-input"
+                    placeholder="e.g. Black"
+                    value={item.colour}
+                    onChange={(e) => updateItem(item._key, "colour", e.target.value)}
+                  />
                 </div>
 
                 {/* Swap-from sub-card */}
@@ -1167,6 +1191,7 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
             <div className="summary-item" key={i}>
               <div className="summary-item-name">
                 <span>{item.description}</span>
+                {item.colour && <span className="summary-colour">Colour: {item.colour}</span>}
                 {item.is_swap ? (
                   <span className="summary-swap">
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: "inline", verticalAlign: "middle", marginRight: "3px" }}>
@@ -1260,7 +1285,7 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
           color: var(--text-primary); display: flex; flex-direction: column;
           gap: 3px; min-width: 0; word-break: break-word;
         }
-        .summary-serial { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+        .summary-serial, .summary-colour { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
         .summary-swap {
           font-size: 11px; color: var(--warning);
           background: rgba(196, 124, 26, 0.08);

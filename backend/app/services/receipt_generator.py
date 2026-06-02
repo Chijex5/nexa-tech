@@ -59,6 +59,7 @@ _NOTICE: str = (
 class ReceiptItem:
     description: str
     serial: str
+    colour: str
     qty: int
     unit_price: float
     amount: float
@@ -245,8 +246,16 @@ def _price_heading(items: list[ReceiptItem]) -> str:
 
 
 def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
-    col_widths: list[float] = [_CW * 0.50, _CW * 0.10, _CW * 0.20, _CW * 0.20]
-    rows: list[list[Any]] = [["DESCRIPTION", "QTY", _price_heading(data.items), "AMOUNT"]]
+    col_widths: list[float] = [
+        _CW * 0.42,
+        _CW * 0.13,
+        _CW * 0.08,
+        _CW * 0.18,
+        _CW * 0.19,
+    ]
+    rows: list[list[Any]] = [
+        ["DESCRIPTION", "COLOUR", "QTY", _price_heading(data.items), "AMOUNT"]
+    ]
     row_heights: list[float] = [8 * mm]
 
     for item in data.items:
@@ -254,6 +263,7 @@ def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
         rows.append(
             [
                 "\n".join(description_lines),
+                item.colour or "—",
                 str(item.qty),
                 _fmt(item.unit_price),
                 _fmt(item.amount),
@@ -261,7 +271,7 @@ def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
         )
         row_heights.append(max(12, 5 * len(description_lines)) * mm)
 
-    rows.append(["", "", "TOTAL", _fmt(data.subtotal)])
+    rows.append(["", "", "", "TOTAL", _fmt(data.subtotal)])
 
     n: int = len(rows)
     total_row: int = n - 1
@@ -287,15 +297,15 @@ def _build_items_table(data: ReceiptData) -> tuple[Table, float]:
                 ("LEFTPADDING", (0, 0), (-1, -1), 6),
                 # Total row
                 ("BACKGROUND", (0, total_row), (-1, total_row), _HEADER_BG),
-                ("TEXTCOLOR", (2, total_row), (-1, total_row), _WHITE),
-                ("FONTNAME", (2, total_row), (-1, total_row), "Helvetica-Bold"),
-                ("FONTSIZE", (2, total_row), (-1, total_row), 9.5),
-                ("ALIGN", (2, total_row), (-1, total_row), "CENTER"),
+                ("TEXTCOLOR", (3, total_row), (-1, total_row), _WHITE),
+                ("FONTNAME", (3, total_row), (-1, total_row), "Helvetica-Bold"),
+                ("FONTSIZE", (3, total_row), (-1, total_row), 9.5),
+                ("ALIGN", (3, total_row), (-1, total_row), "CENTER"),
                 ("TOPPADDING", (0, total_row), (-1, total_row), 4),
                 ("BOTTOMPADDING", (0, total_row), (-1, total_row), 4),
                 ("LINEABOVE", (0, total_row), (-1, total_row), 0.8, _STEEL_BLUE),
                 ("LINEBELOW", (0, total_row), (-1, total_row), 0.8, _STEEL_BLUE),
-                ("SPAN", (0, total_row), (1, total_row)),
+                ("SPAN", (0, total_row), (2, total_row)),
             ]
         )
     )
