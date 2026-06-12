@@ -35,11 +35,11 @@ _CW: float = _MR - _ML
 
 # ── Static business info ──────────────────────────────────────────────────────
 _BUSINESS: dict[str, str] = {
-    "name": "NexaTech World",
+    "name": "Dovatech World",
     "tagline": "Powering the Next Generation of Tech",
     "address": "Pepple Street, Computer Village, Ikeja",
     "phone": "08036498157",
-    "email": "Nexatechgadget@gmail.com",
+    "email": "nexatechgadget@gmail.com",
 }
 
 _TERMS: list[str] = [

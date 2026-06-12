@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NexaTech World — POS",
+  title: "Dovatech World — POS",
   description: "Sales & Receipt Management",
 };
 
@@ -25,7 +25,7 @@ export default function RootLayout({
             <div className="sidebar-logo">
               <div className="logo-mark">N</div>
               <div>
-                <div className="logo-name">NexaTech</div>
+                <div className="logo-name">Dovatech</div>
                 <div className="logo-sub">World POS</div>
               </div>
               {/* Close button inside sidebar */}
@@ -69,7 +69,7 @@ export default function RootLayout({
               </label>
               <div className="mobile-logo">
                 <div className="logo-mark logo-mark-sm">N</div>
-                <span className="logo-name">NexaTech</span>
+                <span className="logo-name">Dovatech</span>
               </div>
               {/* Spacer to center logo */}
               <div style={{ width: "40px" }} />

@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app: FastAPI = FastAPI(
-    title="NexaTech World — Sales & Receipt API",
+    title="Dovatech World — Sales & Receipt API",
     description=(
         "Accepts sales data from the frontend, persists it to MongoDB, "
         "and generates professional PDF receipts via ReportLab."
@@ -40,4 +40,4 @@ app.include_router(sales_router, prefix="/api/v1")
 
 @app.get("/", tags=["Health"])
 async def root() -> dict[str, str]:
-    return {"status": "ok", "service": "NexaTech Sales API"}
+    return {"status": "ok", "service": "Dovatech Sales API"}
