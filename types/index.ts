@@ -1,3 +1,9 @@
+export interface SwapDevice {
+  description: string;
+  serial: string;
+  colour: string;
+}
+
 export interface SaleItemIn {
   description: string;
   serial: string;
@@ -5,9 +11,7 @@ export interface SaleItemIn {
   qty: number;
   unit_price: number;
   is_swap: boolean;
-  swap_from_description: string;
-  swap_from_serial: string;
-  swap_from_colour: string;
+  swap_from_devices: SwapDevice[];
 }
 
 export interface SaleItemOut {
@@ -18,9 +22,7 @@ export interface SaleItemOut {
   unit_price: number;
   amount: number;
   is_swap: boolean;
-  swap_from_description: string;
-  swap_from_serial: string;
-  swap_from_colour: string;
+  swap_from_devices: SwapDevice[];
 }
 
 export interface CreateSaleRequest {

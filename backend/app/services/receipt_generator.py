@@ -57,6 +57,13 @@ _NOTICE: str = (
 # ── Data transfer objects ─────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
+class ReceiptSwapDevice:
+    description: str
+    serial: str
+    colour: str = ""
+
+
+@dataclass(frozen=True)
 class ReceiptItem:
     description: str
     serial: str
@@ -65,9 +72,7 @@ class ReceiptItem:
     unit_price: float
     amount: float
     is_swap: bool = False
-    swap_from_description: str = ""
-    swap_from_serial: str = ""
-    swap_from_colour: str = ""
+    swap_from_devices: tuple[ReceiptSwapDevice, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -241,13 +246,21 @@ def _format_device(description: str, serial: str) -> str:
 
 def _item_description_lines(item: ReceiptItem) -> list[str]:
     if item.is_swap:
-        return [
-            "DEVICE SWAP",
-            f"From: {_format_device(item.swap_from_description, item.swap_from_serial)}",
-            f"To: {_format_device(item.description, item.serial)}",
-        ]
+        devices = item.swap_from_devices
+        lines: list[str] = ["DEVICE SWAP"]
+        if len(devices) <= 1:
+            device = devices[0] if devices else ReceiptSwapDevice("", "")
+            lines.append(f"From: {_format_device(device.description, device.serial)}")
+        else:
+            lines.append(f"From ({len(devices)} devices):")
+            for idx, device in enumerate(devices, start=1):
+                lines.append(
+                    f"  {idx}. {_format_device(device.description, device.serial)}"
+                )
+        lines.append(f"To: {_format_device(item.description, item.serial)}")
+        return lines
 
-    lines: list[str] = [item.description]
+    lines = [item.description]
     if item.serial:
         lines.append(item.serial)
     return lines
@@ -263,10 +276,18 @@ def _price_heading(items: list[ReceiptItem]) -> str:
 
 def _item_colour_lines(item: ReceiptItem) -> list[str]:
     if item.is_swap:
-        return [
-            f"From: {item.swap_from_colour or '-'}",
-            f"To: {item.colour or '-'}",
-        ]
+        devices = item.swap_from_devices
+        if len(devices) <= 1:
+            from_colour = devices[0].colour if devices else ""
+            return [
+                f"From: {from_colour or '-'}",
+                f"To: {item.colour or '-'}",
+            ]
+        lines: list[str] = ["From:"]
+        for idx, device in enumerate(devices, start=1):
+            lines.append(f"  {idx}. {device.colour or '-'}")
+        lines.append(f"To: {item.colour or '-'}")
+        return lines
     return [item.colour or "-"]
 
 

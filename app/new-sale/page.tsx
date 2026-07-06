@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { createSale, receiptUrl } from "@/lib/api";
 import { formatNGN } from "@/lib/format";
-import type { CreateSaleRequest, SaleItemIn, SaleOut } from "@/types";
+import type { CreateSaleRequest, SaleItemIn, SaleOut, SwapDevice } from "@/types";
 
 interface LineItem extends SaleItemIn {
   _key: string;
@@ -21,6 +21,10 @@ function makeKey(): string {
   return Math.random().toString(36).slice(2, 9);
 }
 
+function emptyDevice(): SwapDevice {
+  return { description: "", serial: "", colour: "" };
+}
+
 function emptyItem(): LineItem {
   return {
     _key: makeKey(),
@@ -30,9 +34,7 @@ function emptyItem(): LineItem {
     qty: 1,
     unit_price: 0,
     is_swap: false,
-    swap_from_description: "",
-    swap_from_serial: "",
-    swap_from_colour: "",
+    swap_from_devices: [],
   };
 }
 
@@ -56,10 +58,14 @@ function validateForm(
     if (item.is_swap) {
       if (!item.serial.trim())
         errors[`item_serial_${i}`] = "New device serial is required for swaps.";
-      if (!item.swap_from_description.trim())
-        errors[`item_swap_desc_${i}`] = "Swap-from device is required.";
-      if (!item.swap_from_serial.trim())
-        errors[`item_swap_serial_${i}`] = "Swap-from serial is required.";
+      if (item.swap_from_devices.length === 0)
+        errors[`item_swap_${i}`] = "Add at least one trade-in device.";
+      item.swap_from_devices.forEach((device, d) => {
+        if (!device.description.trim())
+          errors[`item_swap_desc_${i}_${d}`] = "Trade-in device is required.";
+        if (!device.serial.trim())
+          errors[`item_swap_serial_${i}_${d}`] = "Trade-in serial is required.";
+      });
     }
     if (item.qty < 1) errors[`item_qty_${i}`] = "Min qty is 1.";
     if (item.unit_price <= 0)
@@ -113,6 +119,62 @@ export default function NewSalePage() {
     [],
   );
 
+  const toggleSwap = useCallback((key: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item._key !== key) return item;
+        const is_swap = !item.is_swap;
+        // Turning swap on: ensure there's a trade-in row to fill in.
+        const swap_from_devices =
+          is_swap && item.swap_from_devices.length === 0
+            ? [emptyDevice()]
+            : item.swap_from_devices;
+        return { ...item, is_swap, swap_from_devices };
+      }),
+    );
+  }, []);
+
+  const addSwapDevice = useCallback((key: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item._key === key
+          ? { ...item, swap_from_devices: [...item.swap_from_devices, emptyDevice()] }
+          : item,
+      ),
+    );
+  }, []);
+
+  const removeSwapDevice = useCallback((key: string, index: number) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item._key === key
+          ? {
+              ...item,
+              swap_from_devices: item.swap_from_devices.filter((_, d) => d !== index),
+            }
+          : item,
+      ),
+    );
+  }, []);
+
+  const updateSwapDevice = useCallback(
+    (key: string, index: number, field: keyof SwapDevice, value: string) => {
+      setItems((prev) =>
+        prev.map((item) =>
+          item._key === key
+            ? {
+                ...item,
+                swap_from_devices: item.swap_from_devices.map((device, d) =>
+                  d === index ? { ...device, [field]: value } : device,
+                ),
+              }
+            : item,
+        ),
+      );
+    },
+    [],
+  );
+
   const handleSubmit = useCallback(async () => {
     setApiError("");
     const errs = validateForm(customerName, customerPhone, staffName, items);
@@ -133,9 +195,13 @@ export default function NewSalePage() {
           qty: item.qty,
           unit_price: item.unit_price,
           is_swap: item.is_swap,
-          swap_from_description: item.is_swap ? item.swap_from_description : "",
-          swap_from_serial: item.is_swap ? item.swap_from_serial : "",
-          swap_from_colour: item.is_swap ? item.swap_from_colour.trim() : "",
+          swap_from_devices: item.is_swap
+            ? item.swap_from_devices.map((device) => ({
+                description: device.description.trim(),
+                serial: device.serial.trim(),
+                colour: device.colour.trim(),
+              }))
+            : [],
         })),
       };
       const result = await createSale(payload);
@@ -292,7 +358,7 @@ export default function NewSalePage() {
                       <button
                         type="button"
                         className={`swap-pill${item.is_swap ? " swap-pill--active" : ""}`}
-                        onClick={() => updateItem(item._key, "is_swap", !item.is_swap)}
+                        onClick={() => toggleSwap(item._key)}
                         title={item.is_swap ? "Remove swap" : "Mark as device swap"}
                       >
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -393,42 +459,74 @@ export default function NewSalePage() {
                         <path d="M12 19V5M5 12l7-7 7 7" />
                       </svg>
                       Trading in
+                      {item.swap_from_devices.length > 1 && (
+                        <span className="swap-count">{item.swap_from_devices.length} devices</span>
+                      )}
                     </div>
-                    <div className="swap-subfields-inner">
-                      <div className="swap-sub-field" style={{ flex: "2.5" }}>
-                        <label className="field-label">Device being traded</label>
-                        <input
-                          className={`field-input${errors[`item_swap_desc_${i}`] ? " input-error" : ""}`}
-                          placeholder="e.g. iPhone 15 Pro 256GB"
-                          value={item.swap_from_description}
-                          onChange={(e) => updateItem(item._key, "swap_from_description", e.target.value)}
-                        />
-                        {errors[`item_swap_desc_${i}`] && (
-                          <span className="field-error">{errors[`item_swap_desc_${i}`]}</span>
+                    {errors[`item_swap_${i}`] && (
+                      <span className="field-error">{errors[`item_swap_${i}`]}</span>
+                    )}
+                    {item.swap_from_devices.map((device, d) => (
+                      <div className="swap-subfields-inner" key={d}>
+                        {item.swap_from_devices.length > 1 && (
+                          <span className="swap-device-num">{d + 1}</span>
                         )}
+                        <div className="swap-sub-field" style={{ flex: "2.5" }}>
+                          <label className="field-label">Device being traded</label>
+                          <input
+                            className={`field-input${errors[`item_swap_desc_${i}_${d}`] ? " input-error" : ""}`}
+                            placeholder="e.g. iPhone 15 Pro 256GB"
+                            value={device.description}
+                            onChange={(e) => updateSwapDevice(item._key, d, "description", e.target.value)}
+                          />
+                          {errors[`item_swap_desc_${i}_${d}`] && (
+                            <span className="field-error">{errors[`item_swap_desc_${i}_${d}`]}</span>
+                          )}
+                        </div>
+                        <div className="swap-sub-field" style={{ flex: "1.5" }}>
+                          <label className="field-label">Trade-in Serial / IMEI</label>
+                          <input
+                            className={`field-input${errors[`item_swap_serial_${i}_${d}`] ? " input-error" : ""}`}
+                            placeholder="Trade-in serial / IMEI"
+                            value={device.serial}
+                            onChange={(e) => updateSwapDevice(item._key, d, "serial", e.target.value)}
+                          />
+                          {errors[`item_swap_serial_${i}_${d}`] && (
+                            <span className="field-error">{errors[`item_swap_serial_${i}_${d}`]}</span>
+                          )}
+                        </div>
+                        <div className="swap-sub-field" style={{ flex: "1" }}>
+                          <label className="field-label">Trade-in Colour</label>
+                          <input
+                            className="field-input"
+                            placeholder="e.g. Blue"
+                            value={device.colour}
+                            onChange={(e) => updateSwapDevice(item._key, d, "colour", e.target.value)}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="remove-device-btn"
+                          onClick={() => removeSwapDevice(item._key, d)}
+                          aria-label={`Remove trade-in device ${d + 1}`}
+                          disabled={item.swap_from_devices.length === 1}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
                       </div>
-                      <div className="swap-sub-field" style={{ flex: "1.5" }}>
-                        <label className="field-label">Trade-in Serial / IMEI</label>
-                        <input
-                          className={`field-input${errors[`item_swap_serial_${i}`] ? " input-error" : ""}`}
-                          placeholder="Trade-in serial / IMEI"
-                          value={item.swap_from_serial}
-                          onChange={(e) => updateItem(item._key, "swap_from_serial", e.target.value)}
-                        />
-                        {errors[`item_swap_serial_${i}`] && (
-                          <span className="field-error">{errors[`item_swap_serial_${i}`]}</span>
-                        )}
-                      </div>
-                      <div className="swap-sub-field" style={{ flex: "1" }}>
-                        <label className="field-label">Trade-in Colour</label>
-                        <input
-                          className="field-input"
-                          placeholder="e.g. Blue"
-                          value={item.swap_from_colour}
-                          onChange={(e) => updateItem(item._key, "swap_from_colour", e.target.value)}
-                        />
-                      </div>
-                    </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="add-device-btn"
+                      onClick={() => addSwapDevice(item._key)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      Add another trade-in device
+                    </button>
                   </div>
                 )}
               </div>
@@ -453,7 +551,7 @@ export default function NewSalePage() {
                       <button
                         type="button"
                         className={`swap-pill${item.is_swap ? " swap-pill--active" : ""}`}
-                        onClick={() => updateItem(item._key, "is_swap", !item.is_swap)}
+                        onClick={() => toggleSwap(item._key)}
                       >
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
@@ -512,36 +610,71 @@ export default function NewSalePage() {
                         <path d="M12 19V5M5 12l7-7 7 7" />
                       </svg>
                       Trading in
+                      {item.swap_from_devices.length > 1 && (
+                        <span className="swap-count">{item.swap_from_devices.length} devices</span>
+                      )}
                     </div>
-                    <div className="field">
-                      <label className="field-label">Device</label>
-                      <input
-                        className={`field-input${errors[`item_swap_desc_${i}`] ? " input-error" : ""}`}
-                        placeholder="e.g. iPhone 15 Pro 256GB"
-                        value={item.swap_from_description}
-                        onChange={(e) => updateItem(item._key, "swap_from_description", e.target.value)}
-                      />
-                      {errors[`item_swap_desc_${i}`] && <span className="field-error">{errors[`item_swap_desc_${i}`]}</span>}
-                    </div>
-                    <div className="field">
-                      <label className="field-label">Serial / IMEI</label>
-                      <input
-                        className={`field-input${errors[`item_swap_serial_${i}`] ? " input-error" : ""}`}
-                        placeholder="Trade-in serial / IMEI"
-                        value={item.swap_from_serial}
-                        onChange={(e) => updateItem(item._key, "swap_from_serial", e.target.value)}
-                      />
-                      {errors[`item_swap_serial_${i}`] && <span className="field-error">{errors[`item_swap_serial_${i}`]}</span>}
-                    </div>
-                    <div className="field">
-                      <label className="field-label">Colour</label>
-                      <input
-                        className="field-input"
-                        placeholder="e.g. Blue"
-                        value={item.swap_from_colour}
-                        onChange={(e) => updateItem(item._key, "swap_from_colour", e.target.value)}
-                      />
-                    </div>
+                    {errors[`item_swap_${i}`] && (
+                      <span className="field-error">{errors[`item_swap_${i}`]}</span>
+                    )}
+                    {item.swap_from_devices.map((device, d) => (
+                      <div className="mobile-swap-device" key={d}>
+                        {item.swap_from_devices.length > 1 && (
+                          <div className="mobile-swap-device-head">
+                            <span className="swap-device-num">{d + 1}</span>
+                            <button
+                              type="button"
+                              className="remove-device-btn"
+                              onClick={() => removeSwapDevice(item._key, d)}
+                              aria-label={`Remove trade-in device ${d + 1}`}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M18 6L6 18M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                        <div className="field">
+                          <label className="field-label">Device</label>
+                          <input
+                            className={`field-input${errors[`item_swap_desc_${i}_${d}`] ? " input-error" : ""}`}
+                            placeholder="e.g. iPhone 15 Pro 256GB"
+                            value={device.description}
+                            onChange={(e) => updateSwapDevice(item._key, d, "description", e.target.value)}
+                          />
+                          {errors[`item_swap_desc_${i}_${d}`] && <span className="field-error">{errors[`item_swap_desc_${i}_${d}`]}</span>}
+                        </div>
+                        <div className="field">
+                          <label className="field-label">Serial / IMEI</label>
+                          <input
+                            className={`field-input${errors[`item_swap_serial_${i}_${d}`] ? " input-error" : ""}`}
+                            placeholder="Trade-in serial / IMEI"
+                            value={device.serial}
+                            onChange={(e) => updateSwapDevice(item._key, d, "serial", e.target.value)}
+                          />
+                          {errors[`item_swap_serial_${i}_${d}`] && <span className="field-error">{errors[`item_swap_serial_${i}_${d}`]}</span>}
+                        </div>
+                        <div className="field">
+                          <label className="field-label">Colour</label>
+                          <input
+                            className="field-input"
+                            placeholder="e.g. Blue"
+                            value={device.colour}
+                            onChange={(e) => updateSwapDevice(item._key, d, "colour", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="add-device-btn"
+                      onClick={() => addSwapDevice(item._key)}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      Add another trade-in device
+                    </button>
                   </div>
                 )}
 
@@ -934,6 +1067,75 @@ export default function NewSalePage() {
           flex-direction: column;
           gap: 6px;
         }
+        .swap-subfields-inner + .swap-subfields-inner { margin-top: -2px; }
+        .swap-count {
+          margin-left: 6px;
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          background: rgba(196, 124, 26, 0.14);
+          color: var(--warning);
+          padding: 1px 7px;
+          border-radius: 99px;
+        }
+        .swap-device-num {
+          flex-shrink: 0;
+          align-self: center;
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--warning);
+          background: rgba(196, 124, 26, 0.12);
+          border: 1px solid rgba(196, 124, 26, 0.28);
+          border-radius: 50%;
+        }
+        .remove-device-btn {
+          width: 26px;
+          height: 28px;
+          margin-top: 20px;
+          flex-shrink: 0;
+          align-self: flex-start;
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: var(--radius-sm);
+          color: var(--text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .remove-device-btn:hover:not(:disabled) {
+          background: var(--danger-dim);
+          border-color: var(--danger);
+          color: var(--danger);
+        }
+        .remove-device-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+        .add-device-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          align-self: flex-start;
+          background: transparent;
+          border: 1px dashed rgba(196, 124, 26, 0.4);
+          color: var(--warning);
+          font-family: var(--font-display);
+          font-size: 12px;
+          font-weight: 500;
+          padding: 7px 14px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .add-device-btn:hover {
+          border-color: var(--warning);
+          background: rgba(196, 124, 26, 0.08);
+        }
 
         /* ── Inline item inputs ── */
         .item-input {
@@ -1160,6 +1362,22 @@ export default function NewSalePage() {
             border-bottom: 1px solid rgba(196, 124, 26, 0.15);
           }
           .mobile-swap-subcard .swap-from-label { margin-bottom: 2px; }
+          .mobile-swap-device {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .mobile-swap-device + .mobile-swap-device {
+            padding-top: 10px;
+            border-top: 1px dashed rgba(196, 124, 26, 0.25);
+          }
+          .mobile-swap-device-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+          .mobile-swap-subcard .remove-device-btn { margin-top: 0; }
+          .mobile-swap-subcard .add-device-btn { margin-top: 2px; }
 
           .form-footer { flex-direction: column; align-items: stretch; gap: 20px; }
           .total-summary { min-width: 0; width: 100%; }
@@ -1218,11 +1436,21 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
                 {item.colour && <span className="summary-colour">Colour: {item.colour}</span>}
                 {item.is_swap ? (
                   <span className="summary-swap">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: "inline", verticalAlign: "middle", marginRight: "3px" }}>
-                      <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
-                    </svg>
-                    Trade-in: {item.swap_from_description} · {item.swap_from_serial}
-                    {item.swap_from_colour ? ` · ${item.swap_from_colour}` : ""}
+                    <span className="summary-swap-head">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: "inline", verticalAlign: "middle", marginRight: "3px" }}>
+                        <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
+                      </svg>
+                      {item.swap_from_devices.length > 1
+                        ? `Trade-in (${item.swap_from_devices.length} devices):`
+                        : "Trade-in:"}
+                    </span>
+                    {item.swap_from_devices.map((device, d) => (
+                      <span className="summary-swap-device" key={d}>
+                        {item.swap_from_devices.length > 1 ? `${d + 1}. ` : ""}
+                        {device.description} · {device.serial}
+                        {device.colour ? ` · ${device.colour}` : ""}
+                      </span>
+                    ))}
                   </span>
                 ) : item.serial ? (
                   <span className="summary-serial">{item.serial}</span>
@@ -1316,8 +1544,11 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
           background: rgba(196, 124, 26, 0.08);
           border: 1px solid rgba(196, 124, 26, 0.18);
           border-radius: var(--radius-sm);
-          padding: 3px 7px; line-height: 1.5;
+          padding: 4px 7px; line-height: 1.5;
+          display: flex; flex-direction: column; gap: 1px;
         }
+        .summary-swap-head { font-weight: 600; letter-spacing: 0.02em; }
+        .summary-swap-device { padding-left: 2px; }
         .summary-item-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .summary-qty { font-size: 12px; color: var(--text-muted); }
         .swap-badge-sm {
