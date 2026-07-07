@@ -10,6 +10,36 @@ def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
+def _normalise_swap_devices(raw: dict[str, Any]) -> list[dict[str, str]]:
+    """Build the list of trade-in devices for a stored item.
+
+    Supports both the current ``swap_from_devices`` list and the legacy
+    single-device (``swap_from_description``/``_serial``/``_colour``) shape so
+    that sales stored before multi-device swaps still render correctly.
+    """
+    devices = raw.get("swap_from_devices")
+    if devices:
+        return [
+            {
+                "description": d.get("description", ""),
+                "serial": d.get("serial", ""),
+                "colour": d.get("colour", ""),
+            }
+            for d in devices
+        ]
+    if raw.get("swap_from_description") or raw.get("swap_from_serial") or raw.get(
+        "swap_from_colour"
+    ):
+        return [
+            {
+                "description": raw.get("swap_from_description", ""),
+                "serial": raw.get("swap_from_serial", ""),
+                "colour": raw.get("swap_from_colour", ""),
+            }
+        ]
+    return []
+
+
 class SaleItemDocument:
     """Represents a single line item as stored in MongoDB."""
 
@@ -21,9 +51,7 @@ class SaleItemDocument:
         "unit_price",
         "amount",
         "is_swap",
-        "swap_from_description",
-        "swap_from_serial",
-        "swap_from_colour",
+        "swap_from_devices",
     )
 
     def __init__(
@@ -34,9 +62,7 @@ class SaleItemDocument:
         serial: str = "",
         colour: str = "",
         is_swap: bool = False,
-        swap_from_description: str = "",
-        swap_from_serial: str = "",
-        swap_from_colour: str = "",
+        swap_from_devices: list[dict[str, str]] | None = None,
     ) -> None:
         self.description: str = description
         self.serial: str = serial
@@ -45,9 +71,7 @@ class SaleItemDocument:
         self.unit_price: float = unit_price
         self.amount: float = round(qty * unit_price, 2)
         self.is_swap: bool = is_swap
-        self.swap_from_description: str = swap_from_description
-        self.swap_from_serial: str = swap_from_serial
-        self.swap_from_colour: str = swap_from_colour
+        self.swap_from_devices: list[dict[str, str]] = swap_from_devices or []
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -58,9 +82,7 @@ class SaleItemDocument:
             "unit_price": self.unit_price,
             "amount": self.amount,
             "is_swap": self.is_swap,
-            "swap_from_description": self.swap_from_description,
-            "swap_from_serial": self.swap_from_serial,
-            "swap_from_colour": self.swap_from_colour,
+            "swap_from_devices": [dict(d) for d in self.swap_from_devices],
         }
 
 
@@ -116,9 +138,7 @@ class SaleDocument:
                 qty=i["qty"],
                 unit_price=i["unit_price"],
                 is_swap=i.get("is_swap", False),
-                swap_from_description=i.get("swap_from_description", ""),
-                swap_from_serial=i.get("swap_from_serial", ""),
-                swap_from_colour=i.get("swap_from_colour", ""),
+                swap_from_devices=_normalise_swap_devices(i),
             )
             for i in data["items"]
         ]

@@ -13,8 +13,14 @@ from app.schemas import (
     SaleItemOut,
     SaleListItem,
     SaleOut,
+    SwapDevice,
 )
-from app.services.receipt_generator import ReceiptData, ReceiptItem, generate_receipt
+from app.services.receipt_generator import (
+    ReceiptData,
+    ReceiptItem,
+    ReceiptSwapDevice,
+    generate_receipt,
+)
 from app.utils import generate_invoice_number, today_str
 
 
@@ -42,9 +48,7 @@ def _doc_to_sale_out(doc: SaleDocument) -> SaleOut:
                 unit_price=i.unit_price,
                 amount=i.amount,
                 is_swap=i.is_swap,
-                swap_from_description=i.swap_from_description,
-                swap_from_serial=i.swap_from_serial,
-                swap_from_colour=i.swap_from_colour,
+                swap_from_devices=[SwapDevice(**d) for d in i.swap_from_devices],
             )
             for i in doc.items
         ],
@@ -65,9 +69,7 @@ async def create_sale(
             qty=item.qty,
             unit_price=item.unit_price,
             is_swap=item.is_swap,
-            swap_from_description=item.swap_from_description,
-            swap_from_serial=item.swap_from_serial,
-            swap_from_colour=item.swap_from_colour,
+            swap_from_devices=[d.model_dump() for d in item.swap_from_devices],
         )
         for item in payload.items
     ]
@@ -159,9 +161,14 @@ async def download_receipt(
             unit_price=i.unit_price,
             amount=i.amount,
             is_swap=i.is_swap,
-            swap_from_description=i.swap_from_description,
-            swap_from_serial=i.swap_from_serial,
-            swap_from_colour=i.swap_from_colour,
+            swap_from_devices=tuple(
+                ReceiptSwapDevice(
+                    description=d.get("description", ""),
+                    serial=d.get("serial", ""),
+                    colour=d.get("colour", ""),
+                )
+                for d in i.swap_from_devices
+            ),
         )
         for i in doc.items
     ]
