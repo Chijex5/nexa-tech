@@ -39,6 +39,7 @@ _BUSINESS: dict[str, str] = {
     "tagline": "Powering the Next Generation of Tech",
     "address": "Pepple Street, Computer Village, Ikeja",
     "phone": "08036498157",
+    "business_number": "BN: 9683262",
     "email": "nexatechgadget@gmail.com",
 }
 
@@ -174,8 +175,9 @@ def _draw_business_info(c: canvas.Canvas, y: float) -> float:
     c.setFont("Helvetica", 8)
     c.drawString(_ML, y - 4 * mm, _BUSINESS["address"])
     c.drawString(_ML, y - 8 * mm, _BUSINESS["phone"])
-    c.drawString(_ML, y - 12 * mm, _BUSINESS["email"])
-    return y - 18 * mm
+    c.drawString(_ML, y - 12 * mm, _BUSINESS["business_number"])
+    c.drawString(_ML, y - 16 * mm, _BUSINESS["email"])
+    return y - 22 * mm
 
 
 def _draw_meta_row(
