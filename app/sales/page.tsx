@@ -1,6 +1,6 @@
 import { listSales } from "@/lib/api";
 import { formatNGN } from "@/lib/format";
-import { receiptUrl } from "@/lib/api";
+import ReceiptDownload from "@/app/components/ReceiptDownload";
 import type { SaleListItem } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +100,7 @@ export default async function SalesHistoryPage() {
                   <th>Staff</th>
                   <th style={{ width: "160px" }}>Date</th>
                   <th className="right" style={{ width: "140px" }}>Amount</th>
-                  <th className="right" style={{ width: "90px" }}>Receipt</th>
+                  <th className="right" style={{ width: "240px" }}>Receipt</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,20 +114,11 @@ export default async function SalesHistoryPage() {
                     <td className="muted-text date-cell">{formatDate(sale.created_at)}</td>
                     <td className="right mono">{formatNGN(sale.subtotal)}</td>
                     <td className="right">
-                      <a
-                        href={receiptUrl(sale.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="download-link"
-                        aria-label={`Download receipt for ${sale.invoice_number}`}
-                        download={`${sale.invoice_number}.pdf`}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <path d="M7 10l5 5 5-5M12 15V3" />
-                        </svg>
-                        PDF
-                      </a>
+                      <ReceiptDownload
+                        id={sale.id}
+                        invoiceNumber={sale.invoice_number}
+                        variant="row"
+                      />
                     </td>
                   </tr>
                 ))}
@@ -153,20 +144,13 @@ export default async function SalesHistoryPage() {
                   <span className="sale-card-staff">{sale.staff_name}</span>
                   <span className="sale-card-dot" aria-hidden="true">·</span>
                   <span className="sale-card-date">{formatDateShort(sale.created_at)}</span>
-                  <a
-                    href={receiptUrl(sale.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="download-link-mobile"
-                    aria-label={`Download receipt for ${sale.invoice_number}`}
-                    download={`${sale.invoice_number}.pdf`}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <path d="M7 10l5 5 5-5M12 15V3" />
-                    </svg>
-                    PDF
-                  </a>
+                  <div className="sale-card-receipt">
+                    <ReceiptDownload
+                      id={sale.id}
+                      invoiceNumber={sale.invoice_number}
+                      variant="row"
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -338,24 +322,7 @@ export default async function SalesHistoryPage() {
         .muted-text { color: var(--text-secondary); }
         .date-cell { font-size: 12px; }
         .mono { font-family: var(--font-mono); }
-        .download-link {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          color: var(--text-secondary);
-          text-decoration: none;
-          font-size: 12px;
-          font-weight: 500;
-          padding: 5px 10px;
-          border: 1px solid var(--navy-border);
-          border-radius: var(--radius-sm);
-          transition: color 0.15s, border-color 0.15s, background 0.15s;
-        }
-        .download-link:hover {
-          color: var(--accent);
-          border-color: var(--accent);
-          background: var(--accent-dim);
-        }
+        .sale-card-receipt { margin-left: auto; }
 
         /* ── Mobile card list ── */
         .mobile-list {
@@ -408,22 +375,6 @@ export default async function SalesHistoryPage() {
           color: var(--text-muted);
           opacity: 0.5;
         }
-        .download-link-mobile {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          color: var(--accent);
-          text-decoration: none;
-          font-size: 12px;
-          font-weight: 600;
-          margin-left: auto;
-          padding: 4px 10px;
-          border: 1px solid rgba(232, 98, 44, 0.3);
-          border-radius: var(--radius-sm);
-          background: var(--accent-dim);
-          transition: opacity 0.15s;
-        }
-        .download-link-mobile:hover { opacity: 0.8; }
 
         /* ── Visibility helpers ── */
         .desktop-only { display: block; }

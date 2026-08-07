@@ -72,9 +72,13 @@ async def get_sale_endpoint(
 )
 async def get_receipt_endpoint(
     sale_id: str,
+    proforma: bool = Query(
+        default=False,
+        description="Render as a proforma invoice (not paid) instead of a paid receipt.",
+    ),
     db: AsyncIOMotorDatabase = Depends(get_db),  # type: ignore[type-arg]
 ) -> Response:
-    receipt = await download_receipt(db, sale_id)
+    receipt = await download_receipt(db, sale_id, proforma=proforma)
     if receipt is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

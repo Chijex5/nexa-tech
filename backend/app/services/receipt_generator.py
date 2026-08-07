@@ -85,6 +85,7 @@ class ReceiptData:
     payment_method: str
     items: list[ReceiptItem]
     subtotal: float
+    is_proforma: bool = False
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ def _hline(
     c.line(x1, y, x2, y)
 
 
-def _draw_header(c: canvas.Canvas) -> None:
+def _draw_header(c: canvas.Canvas, is_proforma: bool = False) -> None:
     header_h: float = 26 * mm
     _fill(c, 0, _PAGE_H - header_h, _PAGE_W, header_h, _HEADER_BG)
 
@@ -158,9 +159,11 @@ def _draw_header(c: canvas.Canvas) -> None:
         c.setFont("Helvetica-Bold", 13)
         c.drawString(_ML, _PAGE_H - header_h + 12 * mm, _BUSINESS["name"])
 
+    title: str = "PROFORMA INVOICE" if is_proforma else "INVOICE"
+    title_size: int = 15 if is_proforma else 20
     c.setFillColor(_WHITE)
-    c.setFont("Helvetica-Bold", 20)
-    c.drawRightString(_MR, _PAGE_H - header_h + 12 * mm, "INVOICE")
+    c.setFont("Helvetica-Bold", title_size)
+    c.drawRightString(_MR, _PAGE_H - header_h + 12 * mm, title)
 
     c.setFillColor(colors.HexColor("#7BA7D4"))
     c.setFont("Helvetica", 7)
@@ -394,6 +397,7 @@ def _draw_payment_box(
     c: canvas.Canvas,
     y: float,
     payment_method: str,
+    is_proforma: bool = False,
 ) -> float:
     payment_h: float = 20 * mm
     c.roundRect(_ML, y - payment_h, _CW, payment_h, 3, stroke=1, fill=0)
@@ -401,9 +405,18 @@ def _draw_payment_box(
     c.drawString(_ML + 4 * mm, y - 5 * mm, "PAYMENT INFORMATION")
     c.setFont("Helvetica", 8)
     c.drawString(_ML + 4 * mm, y - 11 * mm, "Payment Status:")
-    c.drawString(_ML + 35 * mm, y - 11 * mm, "PAID")
-    c.drawString(_ML + 4 * mm, y - 16 * mm, "Method:")
-    c.drawString(_ML + 35 * mm, y - 16 * mm, payment_method)
+    if is_proforma:
+        c.setFillColor(_STEEL_BLUE)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(_ML + 35 * mm, y - 11 * mm, "NOT PAID")
+        c.setFillColor(_HEADER_BG)
+        c.setFont("Helvetica", 8)
+        c.drawString(_ML + 4 * mm, y - 16 * mm, "Method:")
+        c.drawString(_ML + 35 * mm, y - 16 * mm, "-")
+    else:
+        c.drawString(_ML + 35 * mm, y - 11 * mm, "PAID")
+        c.drawString(_ML + 4 * mm, y - 16 * mm, "Method:")
+        c.drawString(_ML + 35 * mm, y - 16 * mm, payment_method)
     return y - payment_h - 20 * mm
 
 
@@ -471,7 +484,7 @@ def generate_receipt(data: ReceiptData) -> bytes:
     c: canvas.Canvas = canvas.Canvas(buffer, pagesize=A4)
 
     _fill(c, 0, 0, _PAGE_W, _PAGE_H, _WHITE)
-    _draw_header(c)
+    _draw_header(c, data.is_proforma)
 
     y: float = _PAGE_H - 26 * mm - 8 * mm
     y = _draw_business_info(c, y)
@@ -484,7 +497,7 @@ def generate_receipt(data: ReceiptData) -> bytes:
     y -= tbl_h + 8 * mm
 
     y = _draw_summary_box(c, y, data.subtotal)
-    y = _draw_payment_box(c, y, data.payment_method)
+    y = _draw_payment_box(c, y, data.payment_method, data.is_proforma)
     y = _draw_terms(c, y)
     _draw_footer(c, y)
 

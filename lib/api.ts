@@ -41,6 +41,7 @@ export async function getSale(id: string): Promise<SaleOut> {
   return handleResponse<SaleOut>(res);
 }
 
-export function receiptUrl(id: string): string {
-  return `${BASE_URL}/sales/${id}/receipt`;
+export function receiptUrl(id: string, proforma = false): string {
+  const base = `${BASE_URL}/sales/${id}/receipt`;
+  return proforma ? `${base}?proforma=true` : base;
 }

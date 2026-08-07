@@ -139,8 +139,14 @@ async def list_sales(
 async def download_receipt(
     db: AsyncIOMotorDatabase,  # type: ignore[type-arg]
     sale_id: str,
+    proforma: bool = False,
 ) -> ReceiptPdf | None:
-    """Generate PDF receipt bytes for a sale, or None if sale not found."""
+    """Generate PDF receipt bytes for a sale, or None if sale not found.
+
+    When ``proforma`` is True the document is rendered as a proforma invoice:
+    it is titled "PROFORMA INVOICE" and the payment status reads "NOT PAID"
+    instead of "PAID".
+    """
     if not ObjectId.is_valid(sale_id):
         return None
 
@@ -182,9 +188,11 @@ async def download_receipt(
         payment_method=doc.payment_method,
         items=receipt_items,
         subtotal=doc.subtotal,
+        is_proforma=proforma,
     )
 
+    suffix: str = "-proforma" if proforma else ""
     return ReceiptPdf(
         content=generate_receipt(receipt_data),
-        filename=f"{doc.invoice_number}.pdf",
+        filename=f"{doc.invoice_number}{suffix}.pdf",
     )
