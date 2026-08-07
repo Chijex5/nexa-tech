@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { createSale, receiptUrl } from "@/lib/api";
+import { createSale } from "@/lib/api";
 import { formatNGN } from "@/lib/format";
+import ReceiptDownload from "@/app/components/ReceiptDownload";
 import type { CreateSaleRequest, SaleItemIn, SaleOut, SwapDevice } from "@/types";
 
 interface LineItem extends SaleItemIn {
@@ -1403,12 +1404,11 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
       </p>
 
       <div className="success-actions">
-        <a href={receiptUrl(sale.id)} target="_blank" rel="noopener noreferrer" className="btn-receipt" download={`${sale.invoice_number}.pdf`}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Download Receipt PDF
-        </a>
+        <ReceiptDownload
+          id={sale.id}
+          invoiceNumber={sale.invoice_number}
+          variant="panel"
+        />
         <button className="btn-new" onClick={onNewSale}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
@@ -1494,15 +1494,6 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
           display: flex; gap: 10px; margin-bottom: 32px;
           flex-wrap: wrap; justify-content: center; width: 100%;
         }
-        .btn-receipt {
-          display: flex; align-items: center; gap: 8px;
-          background: var(--accent); border: none; color: white;
-          font-family: var(--font-display); font-size: 13px; font-weight: 600;
-          padding: 11px 22px; border-radius: var(--radius-md); cursor: pointer;
-          text-decoration: none; transition: opacity 0.15s, transform 0.1s;
-          box-shadow: 0 2px 12px rgba(232, 98, 44, 0.28); flex: 1; justify-content: center;
-        }
-        .btn-receipt:hover { opacity: 0.9; transform: translateY(-1px); }
         .btn-new {
           display: flex; align-items: center; gap: 8px;
           background: var(--surface-1); border: 1px solid var(--navy-border);
