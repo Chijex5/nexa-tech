@@ -1,39 +1,49 @@
-import { listSales } from "@/lib/api";
-import { formatNGN } from "@/lib/format";
+import Link from "next/link";
+import { listSales, salesExportUrl } from "@/lib/api";
+import { firstParam, formatDate, formatDateTime, formatNGN, queryIsPerson } from "@/lib/format";
 import ReceiptDownload from "@/app/components/ReceiptDownload";
-import type { SaleListItem } from "@/types";
+import {
+  ErrorAlert,
+  ExcelIcon,
+  FilterBar,
+  PAGE_SIZE,
+  Pager,
+  isDate,
+  pageFromParam,
+} from "@/app/components/ListControls";
+import type { SaleListPage } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-NG", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-function formatDateShort(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-NG", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+export default async function SalesHistoryPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const q = firstParam(sp.q).trim().slice(0, 100);
+  const dateFrom = isDate(firstParam(sp.date_from)) ? firstParam(sp.date_from) : "";
+  const dateTo = isDate(firstParam(sp.date_to)) ? firstParam(sp.date_to) : "";
+  const page = pageFromParam(firstParam(sp.page));
+  const filters = { q, date_from: dateFrom, date_to: dateTo };
+  const filtered = Boolean(q || dateFrom || dateTo);
 
-export default async function SalesHistoryPage() {
-  let sales: SaleListItem[] = [];
+  let data: SaleListPage = { items: [], total: 0, total_amount: 0, skip: 0, limit: PAGE_SIZE };
   let fetchError = "";
 
   try {
-    sales = await listSales(0, 100);
+    data = await listSales((page - 1) * PAGE_SIZE, PAGE_SIZE, filters);
   } catch (err) {
     fetchError = err instanceof Error ? err.message : "Failed to load sales.";
   }
 
-  const totalRevenue = sales.reduce((sum, s) => sum + s.subtotal, 0);
+  const sales = data.items;
+  const avg = data.total > 0 ? data.total_amount / data.total : 0;
+
+  // When every result belongs to one phone number, this is a customer history.
+  const phones = new Set(sales.map((s) => s.customer_phone).filter(Boolean));
+  const singleCustomer =
+    q && sales.length > 0 && phones.size === 1 && queryIsPerson(q, sales[0].customer_name, sales[0].customer_phone)
+      ? sales[0]
+      : null;
 
   return (
     <div>
@@ -42,42 +52,71 @@ export default async function SalesHistoryPage() {
         <div>
           <p className="page-eyebrow">Sales</p>
           <h1 className="page-title">Sales History</h1>
-          <p className="page-sub">{sales.length} total sales recorded</p>
+          <p className="page-sub">
+            {filtered
+              ? `${data.total} matching sale${data.total === 1 ? "" : "s"}`
+              : `${data.total} total sale${data.total === 1 ? "" : "s"} recorded`}
+          </p>
         </div>
-        <a href="/new-sale" className="new-sale-link">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New Sale
-        </a>
+        <div className="page-actions">
+          <a
+            href={salesExportUrl(filters)}
+            className="btn btn-secondary"
+            download
+            title={filtered ? "Download these sales as an Excel sheet" : "Download all sales as an Excel sheet"}
+          >
+            <ExcelIcon />
+            Excel
+          </a>
+          <Link href="/new-sale" className="btn btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            New Sale
+          </Link>
+        </div>
       </div>
+
+      <FilterBar
+        action="/sales"
+        q={q}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        placeholder="Customer name, phone, IMEI, invoice…"
+        activeNote={
+          filtered ? (
+            singleCustomer ? (
+              <>
+                <span className="pill pill-accent">Customer history</span>
+                <span>
+                  <strong>{singleCustomer.customer_name}</strong> · {singleCustomer.customer_phone} has bought{" "}
+                  {data.total} time{data.total === 1 ? "" : "s"}, {formatNGN(data.total_amount)} in total.
+                </span>
+              </>
+            ) : (
+              <span>Showing sales that match your search.</span>
+            )
+          ) : null
+        }
+      />
 
       {/* ── Stats strip ── */}
       <div className="stats-row">
         <div className="stat-card">
-          <div className="stat-label">Total Sales</div>
-          <div className="stat-value">{sales.length}</div>
+          <div className="stat-label">{filtered ? "Matching Sales" : "Total Sales"}</div>
+          <div className="stat-value">{data.total}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Total Revenue</div>
-          <div className="stat-value mono">{formatNGN(totalRevenue)}</div>
+          <div className="stat-value mono">{formatNGN(data.total_amount)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Avg. Sale Value</div>
-          <div className="stat-value mono">
-            {sales.length > 0 ? formatNGN(totalRevenue / sales.length) : "₦0"}
-          </div>
+          <div className="stat-value mono">{formatNGN(avg)}</div>
         </div>
       </div>
 
-      {fetchError && (
-        <div className="alert-error" role="alert">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
-          </svg>
-          {fetchError}
-        </div>
-      )}
+      {fetchError && <ErrorAlert message={fetchError} />}
 
       {sales.length === 0 && !fetchError ? (
         <div className="empty-state">
@@ -85,40 +124,66 @@ export default async function SalesHistoryPage() {
             <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
             <rect x="9" y="3" width="6" height="4" rx="2" />
           </svg>
-          <p>No sales recorded yet.</p>
-          <a href="/new-sale" className="empty-cta">Record your first sale →</a>
+          {filtered ? (
+            <>
+              <p>No sales match your search.</p>
+              <Link href="/sales" className="empty-cta">Show all sales →</Link>
+            </>
+          ) : (
+            <>
+              <p>No sales recorded yet.</p>
+              <Link href="/new-sale" className="empty-cta">Record your first sale →</Link>
+            </>
+          )}
         </div>
-      ) : (
+      ) : sales.length > 0 ? (
         <>
-          {/* ══ DESKTOP TABLE ══ */}
-          <div className="table-wrap desktop-only">
-            <table className="sales-table">
+          {/* ══ TABLE (wide screens) ══ */}
+          <div className="table-wrap show-wide">
+            <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: "140px" }}>Invoice</th>
+                  <th>Invoice</th>
                   <th>Customer</th>
-                  <th>Staff</th>
-                  <th style={{ width: "160px" }}>Date</th>
-                  <th className="right" style={{ width: "140px" }}>Amount</th>
-                  <th className="right" style={{ width: "240px" }}>Receipt</th>
+                  <th>Items</th>
+                  <th>Payment</th>
+                  <th>Date</th>
+                  <th className="right">Amount</th>
+                  <th className="right">Receipt</th>
                 </tr>
               </thead>
               <tbody>
                 {sales.map((sale) => (
                   <tr key={sale.id}>
-                    <td>
-                      <span className="invoice-num">{sale.invoice_number}</span>
+                    <td className="nowrap">
+                      <Link href={`/sales/${sale.id}`} className="invoice-num" title="View sale details">
+                        {sale.invoice_number}
+                      </Link>
                     </td>
-                    <td className="customer-name">{sale.customer_name}</td>
-                    <td className="muted-text">{sale.staff_name}</td>
-                    <td className="muted-text date-cell">{formatDate(sale.created_at)}</td>
-                    <td className="right mono">{formatNGN(sale.subtotal)}</td>
-                    <td className="right">
-                      <ReceiptDownload
-                        id={sale.id}
-                        invoiceNumber={sale.invoice_number}
-                        variant="row"
-                      />
+                    <td>
+                      <Link
+                        href={`/sales?q=${encodeURIComponent(sale.customer_phone || sale.customer_name)}`}
+                        className="cell-link cell-main"
+                        title="See everything this customer has bought"
+                      >
+                        {sale.customer_name}
+                      </Link>
+                      {sale.customer_phone && <div className="cell-sub mono">{sale.customer_phone}</div>}
+                    </td>
+                    <td>
+                      <div className="cell-main" style={{ fontWeight: 400 }}>{sale.items_summary}</div>
+                      {sale.has_swap && <span className="pill pill-warning" style={{ marginTop: 4 }}>Swap</span>}
+                    </td>
+                    <td className="nowrap">
+                      <span className="pill">{sale.payment_method}</span>
+                    </td>
+                    <td className="nowrap">
+                      <div className="muted-text" style={{ fontSize: 12 }}>{formatDateTime(sale.created_at)}</div>
+                      <div className="cell-sub">by {sale.staff_name}</div>
+                    </td>
+                    <td className="right mono nowrap">{formatNGN(sale.subtotal)}</td>
+                    <td className="right nowrap">
+                      <ReceiptDownload id={sale.id} invoiceNumber={sale.invoice_number} variant="row" />
                     </td>
                   </tr>
                 ))}
@@ -126,281 +191,46 @@ export default async function SalesHistoryPage() {
             </table>
           </div>
 
-          {/* ══ MOBILE CARD LIST ══ */}
-          <div className="mobile-list mobile-only">
+          {/* ══ CARD LIST (phones / narrow) ══ */}
+          <div className="card-list show-narrow">
             {sales.map((sale) => (
-              <div key={sale.id} className="sale-card">
-                {/* Top row: invoice badge + amount */}
-                <div className="sale-card-top">
-                  <span className="invoice-num">{sale.invoice_number}</span>
-                  <span className="sale-card-amount mono">{formatNGN(sale.subtotal)}</span>
+              <div key={sale.id} className="list-card">
+                <div className="list-card-top">
+                  <Link href={`/sales/${sale.id}`} className="invoice-num">{sale.invoice_number}</Link>
+                  <span className="list-card-amount">{formatNGN(sale.subtotal)}</span>
                 </div>
-
-                {/* Customer + staff */}
-                <div className="sale-card-customer">{sale.customer_name}</div>
-
-                {/* Meta row: staff · date · PDF */}
-                <div className="sale-card-meta">
-                  <span className="sale-card-staff">{sale.staff_name}</span>
-                  <span className="sale-card-dot" aria-hidden="true">·</span>
-                  <span className="sale-card-date">{formatDateShort(sale.created_at)}</span>
-                  <div className="sale-card-receipt">
-                    <ReceiptDownload
-                      id={sale.id}
-                      invoiceNumber={sale.invoice_number}
-                      variant="row"
-                    />
-                  </div>
+                <Link
+                  href={`/sales?q=${encodeURIComponent(sale.customer_phone || sale.customer_name)}`}
+                  className="list-card-title"
+                >
+                  {sale.customer_name}
+                </Link>
+                <div className="list-card-meta" style={{ color: "var(--text-secondary)" }}>
+                  {sale.items_summary}
+                  {sale.has_swap && <span className="pill pill-warning">Swap</span>}
+                </div>
+                <div className="list-card-meta">
+                  {sale.customer_phone && <span className="mono">{sale.customer_phone}</span>}
+                  <span aria-hidden="true">·</span>
+                  <span>{sale.payment_method}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{formatDate(sale.created_at)}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{sale.staff_name}</span>
+                </div>
+                <div className="list-card-footer">
+                  <Link href={`/sales/${sale.id}`} className="btn btn-secondary" style={{ minHeight: 36, padding: "6px 14px" }}>
+                    Details
+                  </Link>
+                  <ReceiptDownload id={sale.id} invoiceNumber={sale.invoice_number} variant="row" />
                 </div>
               </div>
             ))}
           </div>
+
+          <Pager basePath="/sales" params={filters} page={page} total={data.total} noun="sales" />
         </>
-      )}
-
-      <style>{`
-        /* ── Header ── */
-        .page-header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          margin-bottom: 28px;
-          gap: 16px;
-        }
-        .page-eyebrow {
-          font-size: 11px;
-          font-weight: 500;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: var(--accent);
-          margin-bottom: 4px;
-        }
-        .page-title {
-          font-family: var(--font-serif);
-          font-size: 34px;
-          font-weight: 400;
-          color: var(--text-primary);
-          letter-spacing: -0.01em;
-          line-height: 1.1;
-        }
-        .page-sub {
-          font-size: 13px;
-          color: var(--text-muted);
-          margin-top: 6px;
-        }
-        .new-sale-link {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          background: var(--accent);
-          color: white;
-          text-decoration: none;
-          font-size: 13px;
-          font-weight: 600;
-          padding: 10px 18px;
-          border-radius: var(--radius-md);
-          white-space: nowrap;
-          transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
-          flex-shrink: 0;
-          box-shadow: 0 2px 10px rgba(232, 98, 44, 0.28);
-        }
-        .new-sale-link:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232, 98, 44, 0.35); }
-
-        /* ── Stats strip ── */
-        .stats-row {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 14px;
-          margin-bottom: 28px;
-        }
-        .stat-card {
-          background: var(--surface-1);
-          border: 1px solid var(--navy-border);
-          border-top: 3px solid var(--navy-border);
-          border-radius: var(--radius-md);
-          padding: 16px 20px;
-        }
-        .stat-card:first-child { border-top-color: var(--accent); }
-        .stat-label {
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--text-muted);
-          margin-bottom: 8px;
-        }
-        .stat-value {
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--text-primary);
-          letter-spacing: -0.02em;
-        }
-
-        /* ── Error ── */
-        .alert-error {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: var(--danger-dim);
-          border: 1px solid var(--danger);
-          border-left: 3px solid var(--danger);
-          color: var(--danger);
-          font-size: 13px;
-          padding: 10px 14px;
-          border-radius: var(--radius-md);
-          margin-bottom: 20px;
-        }
-
-        /* ── Empty state ── */
-        .empty-state {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          padding: 80px 0;
-          color: var(--text-muted);
-          text-align: center;
-        }
-        .empty-state p { font-size: 14px; }
-        .empty-cta {
-          color: var(--accent);
-          font-size: 13px;
-          text-decoration: none;
-          font-weight: 500;
-        }
-        .empty-cta:hover { text-decoration: underline; }
-
-        /* ── Desktop table ── */
-        .table-wrap {
-          background: var(--surface-1);
-          border: 1px solid var(--navy-border);
-          border-radius: var(--radius-lg);
-          overflow: hidden;
-        }
-        .sales-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13px;
-          table-layout: fixed;
-        }
-        .sales-table th {
-          padding: 12px 16px;
-          text-align: left;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--text-muted);
-          background: var(--surface-2);
-          border-bottom: 1px solid var(--navy-border);
-        }
-        .sales-table th.right,
-        .sales-table td.right { text-align: right; }
-        .sales-table td {
-          padding: 13px 16px;
-          border-bottom: 1px solid rgba(36, 58, 110, 0.4);
-          color: var(--text-primary);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .sales-table tbody tr:last-child td { border-bottom: none; }
-        .sales-table tbody tr:hover td { background: var(--surface-2); }
-
-        /* ── Shared elements ── */
-        .invoice-num {
-          font-family: var(--font-mono);
-          font-size: 12px;
-          color: var(--accent);
-          background: var(--accent-dim);
-          padding: 3px 8px;
-          border-radius: 4px;
-          white-space: nowrap;
-        }
-        .customer-name { font-weight: 500; letter-spacing: 0.01em; }
-        .muted-text { color: var(--text-secondary); }
-        .date-cell { font-size: 12px; }
-        .mono { font-family: var(--font-mono); }
-        .sale-card-receipt { margin-left: auto; }
-
-        /* ── Mobile card list ── */
-        .mobile-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .sale-card {
-          background: var(--surface-1);
-          border: 1px solid var(--navy-border);
-          border-radius: var(--radius-md);
-          padding: 14px 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          transition: border-color 0.15s;
-        }
-        .sale-card:hover { border-color: #c9b8a6; }
-        .sale-card-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        .sale-card-amount {
-          font-size: 16px;
-          font-weight: 600;
-          color: var(--text-primary);
-          letter-spacing: -0.02em;
-        }
-        .sale-card-customer {
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-primary);
-          letter-spacing: 0.01em;
-        }
-        .sale-card-meta {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          flex-wrap: wrap;
-        }
-        .sale-card-staff,
-        .sale-card-date {
-          font-size: 12px;
-          color: var(--text-muted);
-        }
-        .sale-card-dot {
-          font-size: 12px;
-          color: var(--text-muted);
-          opacity: 0.5;
-        }
-
-        /* ── Visibility helpers ── */
-        .desktop-only { display: block; }
-        .mobile-only  { display: none; }
-
-        /* ══ MOBILE ══ */
-        @media (max-width: 640px) {
-          .page-title { font-size: 26px; }
-          .new-sale-link { padding: 9px 14px; font-size: 12px; }
-
-          .stats-row {
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 20px;
-          }
-          /* Third stat spans full width on mobile */
-          .stat-card:last-child {
-            grid-column: 1 / -1;
-          }
-          .stat-card { padding: 12px 14px; }
-          .stat-value { font-size: 18px; }
-
-          .desktop-only { display: none; }
-          .mobile-only  { display: flex; }
-        }
-      `}</style>
+      ) : null}
     </div>
   );
 }

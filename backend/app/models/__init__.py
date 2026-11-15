@@ -40,6 +40,9 @@ def _normalise_swap_devices(raw: dict[str, Any]) -> list[dict[str, str]]:
     return []
 
 
+PURCHASES_COLLECTION: str = "purchases"
+
+
 class SaleItemDocument:
     """Represents a single line item as stored in MongoDB."""
 
