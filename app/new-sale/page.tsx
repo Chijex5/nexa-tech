@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useCallback } from "react";
-import { createSale } from "@/lib/api";
-import { formatNGN } from "@/lib/format";
+import { createSale, listSales } from "@/lib/api";
+import { formatDate, formatNGN } from "@/lib/format";
+import { focusFirstError, useRemembered } from "@/lib/remember";
 import ReceiptDownload from "@/app/components/ReceiptDownload";
+import MoneyInput from "@/app/components/MoneyInput";
 import type { CreateSaleRequest, SaleItemIn, SaleOut, SwapDevice } from "@/types";
 
 interface LineItem extends SaleItemIn {
@@ -80,7 +83,9 @@ function validateForm(
 export default function NewSalePage() {
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
-  const [staffName, setStaffName] = useState<string>("");
+  // Remembered on this device so staff don't retype their name every sale.
+  const [staffName, setStaffName] = useRemembered("staffName");
+  const [customerHint, setCustomerHint] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Bank Transfer");
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
 
@@ -176,11 +181,40 @@ export default function NewSalePage() {
     [],
   );
 
+  /** Returning customer? Fill in their name and show how often they've bought. */
+  const lookupCustomer = async () => {
+    const phone = customerPhone.trim();
+    if (!/^[\d\s+\-]{7,20}$/.test(phone)) {
+      setCustomerHint("");
+      return;
+    }
+    try {
+      const page = await listSales(0, 1, { q: phone });
+      const last = page.items[0];
+      if (last) {
+        if (!customerName.trim()) {
+          setCustomerName(last.customer_name);
+          clearError("customerName");
+        }
+        setCustomerHint(
+          `Returning customer · ${page.total} previous sale${page.total === 1 ? "" : "s"}, last on ${formatDate(last.created_at)}`,
+        );
+      } else {
+        setCustomerHint("");
+      }
+    } catch {
+      setCustomerHint("");
+    }
+  };
+
   const handleSubmit = useCallback(async () => {
     setApiError("");
     const errs = validateForm(customerName, customerPhone, staffName, items);
     setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (Object.keys(errs).length > 0) {
+      focusFirstError();
+      return;
+    }
 
     setLoading(true);
     try {
@@ -207,18 +241,33 @@ export default function NewSalePage() {
       };
       const result = await createSale(payload);
       setSavedSale(result.sale);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setApiError(err instanceof Error ? err.message : "Something went wrong.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setLoading(false);
     }
   }, [customerName, customerPhone, staffName, paymentMethod, items]);
 
+  const errorCount = Object.keys(errors).length;
+
+  /** Clear a field's error as soon as the user edits it. */
+  const clearError = (...keys: string[]) => {
+    if (keys.some((k) => errors[k])) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        keys.forEach((k) => delete next[k]);
+        return next;
+      });
+    }
+  };
+
   const handleReset = useCallback(() => {
     setSavedSale(null);
     setCustomerName("");
     setCustomerPhone("");
-    setStaffName("");
+    setCustomerHint("");
     setPaymentMethod("Bank Transfer");
     setItems([emptyItem()]);
     setErrors({});
@@ -248,7 +297,16 @@ export default function NewSalePage() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
           </svg>
-          {apiError}
+          <span>{apiError}</span>
+        </div>
+      )}
+
+      {errorCount > 0 && !apiError && (
+        <div className="alert-error" role="alert">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+          </svg>
+          <span>Please fix the highlighted field{errorCount === 1 ? "" : "s"} below.</span>
         </div>
       )}
 
@@ -266,7 +324,7 @@ export default function NewSalePage() {
               className={`field-input${errors.customerName ? " input-error" : ""}`}
               placeholder="Jane Doe"
               value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
+              onChange={(e) => { setCustomerName(e.target.value); clearError("customerName"); }}
               autoComplete="off"
             />
             {errors.customerName && <span className="field-error">{errors.customerName}</span>}
@@ -278,10 +336,17 @@ export default function NewSalePage() {
               className={`field-input${errors.customerPhone ? " input-error" : ""}`}
               placeholder="07023455678"
               value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
+              onChange={(e) => { setCustomerPhone(e.target.value); clearError("customerPhone"); }}
+              onBlur={lookupCustomer}
               type="tel"
+              inputMode="tel"
+              autoComplete="off"
             />
-            {errors.customerPhone && <span className="field-error">{errors.customerPhone}</span>}
+            {errors.customerPhone ? (
+              <span className="field-error">{errors.customerPhone}</span>
+            ) : customerHint ? (
+              <span className="field-hint" style={{ color: "var(--success)" }}>{customerHint}</span>
+            ) : null}
           </div>
           <div className="field">
             <label className="field-label" htmlFor="staff_name">Handled By</label>
@@ -289,8 +354,9 @@ export default function NewSalePage() {
               id="staff_name"
               className={`field-input${errors.staffName ? " input-error" : ""}`}
               placeholder="John Smith"
+              autoComplete="off"
               value={staffName}
-              onChange={(e) => setStaffName(e.target.value)}
+              onChange={(e) => { setStaffName(e.target.value); clearError("staffName"); }}
             />
             {errors.staffName && <span className="field-error">{errors.staffName}</span>}
           </div>
@@ -354,7 +420,7 @@ export default function NewSalePage() {
                         className={`field-input item-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
                         placeholder={item.is_swap ? "New device e.g. iPhone 17 Pro Max 1TB" : "e.g. MacBook Pro M4"}
                         value={item.description}
-                        onChange={(e) => updateItem(item._key, "description", e.target.value)}
+                        onChange={(e) => { updateItem(item._key, "description", e.target.value); clearError(`item_desc_${i}`); }}
                       />
                       <button
                         type="button"
@@ -378,8 +444,10 @@ export default function NewSalePage() {
                     <input
                       className={`field-input item-input${errors[`item_serial_${i}`] ? " input-error" : ""}`}
                       placeholder={item.is_swap ? "New serial / IMEI" : "SN:12345 (opt.)"}
+                      autoComplete="off"
+                      spellCheck={false}
                       value={item.serial}
-                      onChange={(e) => updateItem(item._key, "serial", e.target.value)}
+                      onChange={(e) => { updateItem(item._key, "serial", e.target.value); clearError(`item_serial_${i}`); }}
                     />
                     {errors[`item_serial_${i}`] && (
                       <span className="field-error">{errors[`item_serial_${i}`]}</span>
@@ -401,6 +469,10 @@ export default function NewSalePage() {
                     <input
                       className={`field-input item-input text-center${errors[`item_qty_${i}`] ? " input-error" : ""}`}
                       type="number"
+                      inputMode="numeric"
+                      min={1}
+                      aria-label="Quantity"
+                      onWheel={(e) => e.currentTarget.blur()}
                       value={item.qty === 0 ? "" : item.qty}
                       onChange={(e) =>
                         updateItem(item._key, "qty", parseInt(e.target.value) || 0)
@@ -417,17 +489,12 @@ export default function NewSalePage() {
                     {item.is_swap && (
                       <span className="swap-price-label">Top-Up Amount</span>
                     )}
-                    <input
+                    <MoneyInput
                       aria-label={item.is_swap ? "Top-Up Amount (₦)" : "Unit Price (₦)"}
                       className={`field-input item-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
-                      type="number"
-                      min={0}
-                      step={100}
                       placeholder="0"
-                      value={item.unit_price === 0 ? "" : item.unit_price}
-                      onChange={(e) =>
-                        updateItem(item._key, "unit_price", parseFloat(e.target.value) || 0)
-                      }
+                      value={item.unit_price}
+                      onChange={(v) => { updateItem(item._key, "unit_price", v); clearError(`item_price_${i}`); }}
                     />
                     {errors[`item_price_${i}`] && (
                       <span className="field-error">{errors[`item_price_${i}`]}</span>
@@ -478,7 +545,7 @@ export default function NewSalePage() {
                             className={`field-input${errors[`item_swap_desc_${i}_${d}`] ? " input-error" : ""}`}
                             placeholder="e.g. iPhone 15 Pro 256GB"
                             value={device.description}
-                            onChange={(e) => updateSwapDevice(item._key, d, "description", e.target.value)}
+                            onChange={(e) => { updateSwapDevice(item._key, d, "description", e.target.value); clearError(`item_swap_desc_${i}_${d}`, `item_swap_${i}`); }}
                           />
                           {errors[`item_swap_desc_${i}_${d}`] && (
                             <span className="field-error">{errors[`item_swap_desc_${i}_${d}`]}</span>
@@ -490,7 +557,7 @@ export default function NewSalePage() {
                             className={`field-input${errors[`item_swap_serial_${i}_${d}`] ? " input-error" : ""}`}
                             placeholder="Trade-in serial / IMEI"
                             value={device.serial}
-                            onChange={(e) => updateSwapDevice(item._key, d, "serial", e.target.value)}
+                            onChange={(e) => { updateSwapDevice(item._key, d, "serial", e.target.value); clearError(`item_swap_serial_${i}_${d}`); }}
                           />
                           {errors[`item_swap_serial_${i}_${d}`] && (
                             <span className="field-error">{errors[`item_swap_serial_${i}_${d}`]}</span>
@@ -564,7 +631,7 @@ export default function NewSalePage() {
                       className={`field-input${errors[`item_desc_${i}`] ? " input-error" : ""}`}
                       placeholder={item.is_swap ? "e.g. iPhone 17 Pro Max 1TB" : "e.g. MacBook Pro M4"}
                       value={item.description}
-                      onChange={(e) => updateItem(item._key, "description", e.target.value)}
+                      onChange={(e) => { updateItem(item._key, "description", e.target.value); clearError(`item_desc_${i}`); }}
                     />
                     {errors[`item_desc_${i}`] && <span className="field-error">{errors[`item_desc_${i}`]}</span>}
                   </div>
@@ -586,8 +653,10 @@ export default function NewSalePage() {
                   <input
                     className={`field-input${errors[`item_serial_${i}`] ? " input-error" : ""}`}
                     placeholder={item.is_swap ? "New serial / IMEI" : "SN:12345"}
+                    autoComplete="off"
+                    spellCheck={false}
                     value={item.serial}
-                    onChange={(e) => updateItem(item._key, "serial", e.target.value)}
+                    onChange={(e) => { updateItem(item._key, "serial", e.target.value); clearError(`item_serial_${i}`); }}
                   />
                   {errors[`item_serial_${i}`] && <span className="field-error">{errors[`item_serial_${i}`]}</span>}
                 </div>
@@ -641,7 +710,7 @@ export default function NewSalePage() {
                             className={`field-input${errors[`item_swap_desc_${i}_${d}`] ? " input-error" : ""}`}
                             placeholder="e.g. iPhone 15 Pro 256GB"
                             value={device.description}
-                            onChange={(e) => updateSwapDevice(item._key, d, "description", e.target.value)}
+                            onChange={(e) => { updateSwapDevice(item._key, d, "description", e.target.value); clearError(`item_swap_desc_${i}_${d}`, `item_swap_${i}`); }}
                           />
                           {errors[`item_swap_desc_${i}_${d}`] && <span className="field-error">{errors[`item_swap_desc_${i}_${d}`]}</span>}
                         </div>
@@ -651,7 +720,7 @@ export default function NewSalePage() {
                             className={`field-input${errors[`item_swap_serial_${i}_${d}`] ? " input-error" : ""}`}
                             placeholder="Trade-in serial / IMEI"
                             value={device.serial}
-                            onChange={(e) => updateSwapDevice(item._key, d, "serial", e.target.value)}
+                            onChange={(e) => { updateSwapDevice(item._key, d, "serial", e.target.value); clearError(`item_swap_serial_${i}_${d}`); }}
                           />
                           {errors[`item_swap_serial_${i}_${d}`] && <span className="field-error">{errors[`item_swap_serial_${i}_${d}`]}</span>}
                         </div>
@@ -681,11 +750,15 @@ export default function NewSalePage() {
 
                 {/* Qty / Price / Amount row */}
                 <div className="mobile-item-row">
-                  <div className="field" style={{ flex: "0 0 76px" }}>
+                  <div className="field" style={{ flex: "0 0 70px" }}>
                     <label className="field-label">Qty</label>
                     <input
                       className={`field-input text-center${errors[`item_qty_${i}`] ? " input-error" : ""}`}
                       type="number"
+                      inputMode="numeric"
+                      min={1}
+                      aria-label="Quantity"
+                      onWheel={(e) => e.currentTarget.blur()}
                       value={item.qty === 0 ? "" : item.qty}
                       onChange={(e) =>
                         updateItem(item._key, "qty", parseInt(e.target.value) || 0)
@@ -698,16 +771,12 @@ export default function NewSalePage() {
                   </div>
                   <div className="field" style={{ flex: 1 }}>
                     <label className="field-label">{item.is_swap ? "Top-Up Amount (₦)" : "Unit Price (₦)"}</label>
-                    <input
+                    <MoneyInput
+                      aria-label={item.is_swap ? "Top-Up Amount (₦)" : "Unit Price (₦)"}
                       className={`field-input text-right${errors[`item_price_${i}`] ? " input-error" : ""}`}
-                      type="number"
-                      min={0}
-                      step={100}
                       placeholder="0"
-                      value={item.unit_price === 0 ? "" : item.unit_price}
-                      onChange={(e) =>
-                        updateItem(item._key, "unit_price", parseFloat(e.target.value) || 0)
-                      }
+                      value={item.unit_price}
+                      onChange={(v) => { updateItem(item._key, "unit_price", v); clearError(`item_price_${i}`); }}
                     />
                     {errors[`item_price_${i}`] && <span className="field-error">{errors[`item_price_${i}`]}</span>}
                   </div>
@@ -887,6 +956,7 @@ export default function NewSalePage() {
           color: var(--text-secondary);
           letter-spacing: 0.02em;
         }
+        .field-hint { font-size: 11px; color: var(--text-muted); }
         .field-input {
           background: var(--surface-0);
           border: 1px solid var(--navy-border);
@@ -983,6 +1053,7 @@ export default function NewSalePage() {
           display: flex;
           flex-direction: column;
           gap: 4px;
+          min-width: 0;
         }
         .swap-price-label {
           align-self: flex-end;
@@ -1067,6 +1138,7 @@ export default function NewSalePage() {
           display: flex;
           flex-direction: column;
           gap: 6px;
+          min-width: 0;
         }
         .swap-subfields-inner + .swap-subfields-inner { margin-top: -2px; }
         .swap-count {
@@ -1270,6 +1342,21 @@ export default function NewSalePage() {
           .subtotal-amount { font-size: 15px; }
           .form-section { padding: 16px; }
           .field-grid { grid-template-columns: 1fr; gap: 14px; }
+          .remove-btn, .remove-device-btn { width: 40px; height: 40px; }
+          .remove-btn-mobile { margin-top: 18px; }
+          .swap-pill { min-height: 30px; padding: 5px 12px; }
+          .add-device-btn { min-height: 40px; }
+          .add-item-btn { min-height: 46px; }
+          .form-footer { flex-direction: column; align-items: stretch; gap: 20px; }
+          .total-summary { min-width: 0; width: 100%; }
+          .submit-btn { width: 100%; justify-content: center; padding: 16px; font-size: 15px; }
+        }
+
+        /* ══ COMPACT ITEM CARDS ══
+           Switch line items to stacked cards whenever the content area is too
+           narrow for the 7-column row (phones, tablets, small laptops with the
+           sidebar) instead of squashing / overflowing the inputs. */
+        @container main (max-width: 800px) {
           .items-table-header { display: none; }
           .item-row-desktop { display: none; }
           .item-row-mobile {
@@ -1379,10 +1466,6 @@ export default function NewSalePage() {
           }
           .mobile-swap-subcard .remove-device-btn { margin-top: 0; }
           .mobile-swap-subcard .add-device-btn { margin-top: 2px; }
-
-          .form-footer { flex-direction: column; align-items: stretch; gap: 20px; }
-          .total-summary { min-width: 0; width: 100%; }
-          .submit-btn { width: 100%; justify-content: center; padding: 16px; font-size: 15px; }
         }
       `}</style>
     </div>
@@ -1415,6 +1498,11 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
           </svg>
           New Sale
         </button>
+      </div>
+      <div className="success-links">
+        <Link href={`/sales/${sale.id}`}>View sale details</Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/sales">Sales History</Link>
       </div>
 
       <div className="sale-summary-card">
@@ -1490,6 +1578,12 @@ function SuccessScreen({ sale, onNewSale }: { sale: SaleOut; onNewSale: () => vo
           letter-spacing: -0.01em; margin-bottom: 10px; color: var(--text-primary);
         }
         .success-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.5; }
+        .success-links {
+          display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+          font-size: 13px; color: var(--text-muted); margin: -16px 0 28px;
+        }
+        .success-links a { color: var(--accent); text-decoration: none; font-weight: 500; }
+        .success-links a:hover { text-decoration: underline; }
         .success-actions {
           display: flex; gap: 10px; margin-bottom: 32px;
           flex-wrap: wrap; justify-content: center; width: 100%;

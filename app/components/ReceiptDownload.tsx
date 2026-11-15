@@ -126,6 +126,13 @@ export default function ReceiptDownload({
           box-shadow: 0 2px 12px rgba(232, 98, 44, 0.28);
         }
         .receipt-dl-panel .receipt-dl-link:hover { opacity: 0.9; transform: translateY(-1px); }
+        .receipt-toggle button { min-height: 28px; }
+        .receipt-dl-panel .receipt-toggle { align-self: center; }
+        @media (max-width: 640px) {
+          .receipt-dl-row .receipt-toggle button { font-size: 12px; padding: 6px 12px; min-height: 34px; }
+          .receipt-dl-row .receipt-dl-link { font-size: 12px; padding: 7px 12px; min-height: 34px; }
+          .receipt-dl-panel .receipt-dl-link { min-height: 46px; }
+        }
       `}</style>
     </div>
   );

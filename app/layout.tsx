@@ -1,9 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import Link from "next/link";
+import NavLinks from "@/app/components/NavLinks";
 
 export const metadata: Metadata = {
   title: "Dovatech World — POS",
   description: "Sales & Receipt Management",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#faf8f5",
 };
 
 export default function RootLayout({
@@ -36,22 +44,7 @@ export default function RootLayout({
               </label>
             </div>
 
-            <nav className="sidebar-nav">
-              <a href="/new-sale" className="nav-link">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                New Sale
-              </a>
-              <a href="/sales" className="nav-link">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                  <rect x="9" y="3" width="6" height="4" rx="2" />
-                  <path d="M9 12h6M9 16h4" />
-                </svg>
-                Sales History
-              </a>
-            </nav>
+            <NavLinks />
 
             <div className="sidebar-footer">
               <div className="sidebar-footer-text">Pepple St, Computer Village</div>
@@ -62,7 +55,7 @@ export default function RootLayout({
           <div className="content-wrapper">
             {/* ── Mobile top bar ── */}
             <header className="mobile-header">
-              <label htmlFor="sidebar-toggle" className="hamburger-btn" aria-label="Open menu">
+              <label htmlFor="sidebar-toggle" className="hamburger-btn" aria-label="Open menu" title="Menu">
                 <span className="hamburger-bar" />
                 <span className="hamburger-bar" />
                 <span className="hamburger-bar" />
@@ -71,8 +64,12 @@ export default function RootLayout({
                 <div className="logo-mark logo-mark-sm">N</div>
                 <span className="logo-name">Dovatech</span>
               </div>
-              {/* Spacer to center logo */}
-              <div style={{ width: "40px" }} />
+              {/* Quick action keeps the logo centred and saves opening the menu */}
+              <Link href="/new-sale" className="mobile-quick-btn" aria-label="New sale" title="New sale">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </Link>
             </header>
 
             <main className="main-content">{children}</main>
@@ -168,14 +165,29 @@ export default function RootLayout({
           .sidebar-nav {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 18px;
             flex: 1;
+            overflow-y: auto;
+          }
+          .nav-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+          .nav-group-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0 12px 2px;
           }
           .nav-link {
             display: flex;
             align-items: center;
             gap: 10px;
             padding: 10px 12px;
+            min-height: 42px;
             border-radius: var(--radius-md);
             color: var(--text-secondary);
             text-decoration: none;
@@ -256,6 +268,17 @@ export default function RootLayout({
             align-items: center;
             gap: 8px;
           }
+          .mobile-quick-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            color: var(--accent);
+            background: var(--accent-dim);
+            flex-shrink: 0;
+          }
 
           /* ── Overlay (taps to close) ── */
           .sidebar-overlay {
@@ -270,7 +293,11 @@ export default function RootLayout({
           .main-content {
             flex: 1;
             padding: 40px 48px;
-            max-width: 960px;
+            max-width: 1100px;
+            width: 100%;
+            min-width: 0;
+            /* Lets pages adapt to the space they actually get (sidebar or not) */
+            container: main / inline-size;
           }
 
           /* ── Mobile breakpoint ── */
@@ -286,6 +313,8 @@ export default function RootLayout({
               left: 0;
               top: 0;
               height: 100vh;
+              height: 100dvh;
+              max-width: 85vw;
               z-index: 30;
               transform: translateX(-100%);
               transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -314,7 +343,7 @@ export default function RootLayout({
             }
 
             .main-content {
-              padding: 24px 16px 40px;
+              padding: 20px 14px 48px;
             }
           }
         `}</style>
