@@ -11,6 +11,7 @@ from app.schemas import (
     PurchaseOut,
     SaleListPage,
     SaleOut,
+    UpdateSaleDateRequest,
 )
 from app.routes.common import DateFrom, DateTo, SearchText, xlsx_response
 from app.services.export_service import sales_workbook
@@ -22,6 +23,7 @@ from app.services.sale_service import (
     get_sale_by_id,
     iter_sales_for_export,
     list_sales,
+    update_sale_date,
 )
 
 EXPORT_MAX_SALES = 20_000
@@ -91,6 +93,22 @@ async def get_sale_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sale not found.",
         )
+    return sale
+
+
+@router.patch(
+    "/{sale_id}/date",
+    response_model=SaleOut,
+    summary="Change the date of a sale (and its receipt), e.g. a receipt written late.",
+)
+async def update_sale_date_endpoint(
+    sale_id: str,
+    payload: UpdateSaleDateRequest,
+    db: AsyncIOMotorDatabase = Depends(get_db),  # type: ignore[type-arg]
+) -> SaleOut:
+    sale = await update_sale_date(db, sale_id, payload)
+    if sale is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sale not found.")
     return sale
 
 

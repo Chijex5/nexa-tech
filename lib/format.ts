@@ -66,3 +66,13 @@ export function queryIsPerson(q: string, name: string, phone: string): boolean {
   }
   return name.toLowerCase().includes(query);
 }
+
+/** The Lagos calendar day (YYYY-MM-DD) of an ISO timestamp. */
+export function lagosDay(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
