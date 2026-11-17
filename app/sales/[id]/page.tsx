@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSale, getSalePurchases } from "@/lib/api";
-import { formatDateTime, formatDay, formatNGN } from "@/lib/format";
+import { formatDateTime, formatDay, formatNGN, lagosDay } from "@/lib/format";
 import ReceiptDownload from "@/app/components/ReceiptDownload";
+import SaleDateEditor from "@/app/components/SaleDateEditor";
 import { ErrorAlert } from "@/app/components/ListControls";
 import type { PurchaseOut, SaleOut } from "@/types";
 
 export const dynamic = "force-dynamic";
+
+/** "16/11/2026" (as printed on the receipt) → "2026-11-16". */
+function invoiceDay(invoiceDate: string, fallbackIso: string): string {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(invoiceDate);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : lagosDay(fallbackIso);
+}
 
 function serialKey(serial: string): string {
   return serial.replace(/[\s-]+/g, "").toUpperCase();
@@ -70,6 +77,15 @@ export default async function SaleDetailPage({ params }: { params: Promise<{ id:
           <section className="card">
             <div className="card-title">Customer &amp; payment</div>
             <div className="detail-grid">
+              <div style={{ gridColumn: "1 / -1" }}>
+                <div className="detail-label">Date of sale</div>
+                <div className="detail-value">
+                  <SaleDateEditor saleId={sale.id} day={invoiceDay(sale.invoice_date, sale.created_at)} />
+                </div>
+                {sale.recorded_at && lagosDay(sale.recorded_at) !== invoiceDay(sale.invoice_date, sale.created_at) && (
+                  <div className="cell-sub">Entered on {formatDateTime(sale.recorded_at)}</div>
+                )}
+              </div>
               <div>
                 <div className="detail-label">Customer</div>
                 <div className="detail-value">{sale.customer_name}</div>

@@ -105,6 +105,7 @@ class SaleDocument:
         payment_method: str = "Bank Transfer",
         _id: ObjectId | None = None,
         created_at: datetime | None = None,
+        recorded_at: datetime | None = None,
     ) -> None:
         self._id: ObjectId = _id or ObjectId()
         self.invoice_number: str = invoice_number
@@ -115,7 +116,10 @@ class SaleDocument:
         self.payment_method: str = payment_method
         self.items: list[SaleItemDocument] = items
         self.subtotal: float = round(sum(i.amount for i in items), 2)
+        # created_at = when the sale happened (can be set to an earlier day if
+        # the receipt was written late); recorded_at = when it was entered.
         self.created_at: datetime = created_at or _utc_now()
+        self.recorded_at: datetime = recorded_at or self.created_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -129,6 +133,7 @@ class SaleDocument:
             "items": [item.to_dict() for item in self.items],
             "subtotal": self.subtotal,
             "created_at": self.created_at,
+            "recorded_at": self.recorded_at,
         }
 
     @classmethod
@@ -155,4 +160,5 @@ class SaleDocument:
             payment_method=data.get("payment_method", "Bank Transfer"),
             items=items,
             created_at=data["created_at"],
+            recorded_at=data.get("recorded_at"),
         )

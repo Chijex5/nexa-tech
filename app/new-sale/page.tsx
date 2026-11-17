@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useCallback } from "react";
 import { createSale, listSales } from "@/lib/api";
-import { formatDate, formatNGN } from "@/lib/format";
+import { formatDate, formatDay, formatNGN, todayLagos } from "@/lib/format";
 import { focusFirstError, useRemembered } from "@/lib/remember";
 import ReceiptDownload from "@/app/components/ReceiptDownload";
 import MoneyInput from "@/app/components/MoneyInput";
@@ -87,6 +87,9 @@ export default function NewSalePage() {
   const [staffName, setStaffName] = useRemembered("staffName");
   const [customerHint, setCustomerHint] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Bank Transfer");
+  // Day the sale happened. Defaults to today; set an earlier day when the
+  // receipt is being written late so the receipt shows the real date.
+  const [saleDate, setSaleDate] = useState<string>(() => todayLagos());
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
 
   const [errors, setErrors] = useState<FormError>({});
@@ -210,6 +213,8 @@ export default function NewSalePage() {
   const handleSubmit = useCallback(async () => {
     setApiError("");
     const errs = validateForm(customerName, customerPhone, staffName, items);
+    if (!saleDate) errs.saleDate = "Pick the date of the sale.";
+    else if (saleDate > todayLagos()) errs.saleDate = "Date can't be in the future.";
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
       focusFirstError();
@@ -223,6 +228,7 @@ export default function NewSalePage() {
         customer_phone: customerPhone,
         staff_name: staffName,
         payment_method: paymentMethod,
+        sale_date: saleDate,
         items: items.map((item) => ({
           description: item.description,
           serial: item.serial,
@@ -248,7 +254,7 @@ export default function NewSalePage() {
     } finally {
       setLoading(false);
     }
-  }, [customerName, customerPhone, staffName, paymentMethod, items]);
+  }, [customerName, customerPhone, staffName, paymentMethod, saleDate, items]);
 
   const errorCount = Object.keys(errors).length;
 
@@ -269,6 +275,7 @@ export default function NewSalePage() {
     setCustomerPhone("");
     setCustomerHint("");
     setPaymentMethod("Bank Transfer");
+    setSaleDate(todayLagos());
     setItems([emptyItem()]);
     setErrors({});
     setApiError("");
@@ -372,6 +379,29 @@ export default function NewSalePage() {
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="sale_date">Sale Date</label>
+            <input
+              id="sale_date"
+              type="date"
+              max={todayLagos()}
+              className={`field-input${errors.saleDate ? " input-error" : ""}${saleDate && saleDate !== todayLagos() ? " input-backdated" : ""}`}
+              value={saleDate}
+              onChange={(e) => { setSaleDate(e.target.value); clearError("saleDate"); }}
+            />
+            {errors.saleDate ? (
+              <span className="field-error">{errors.saleDate}</span>
+            ) : saleDate && saleDate !== todayLagos() ? (
+              <span className="field-hint" style={{ color: "var(--warning)" }}>
+                Receipt will be dated {formatDay(saleDate)} ·{" "}
+                <button type="button" className="link-btn" onClick={() => setSaleDate(todayLagos())}>
+                  use today
+                </button>
+              </span>
+            ) : (
+              <span className="field-hint">Change only if the sale happened on an earlier day.</span>
+            )}
           </div>
         </div>
       </section>
@@ -957,6 +987,11 @@ export default function NewSalePage() {
           letter-spacing: 0.02em;
         }
         .field-hint { font-size: 11px; color: var(--text-muted); }
+        .input-backdated { border-color: rgba(196, 124, 26, 0.6); background: rgba(196, 124, 26, 0.05); }
+        .link-btn {
+          background: none; border: none; padding: 0; cursor: pointer;
+          font: inherit; color: var(--accent); font-weight: 600; text-decoration: underline;
+        }
         .field-input {
           background: var(--surface-0);
           border: 1px solid var(--navy-border);

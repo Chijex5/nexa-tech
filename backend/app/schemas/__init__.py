@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from app.utils import lagos_today, parse_date
+from app.utils import validate_past_date
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # Upper bounds that stop absurd or abusive payloads (huge prices, thousands of
@@ -133,11 +133,30 @@ class CreateSaleRequest(_Input):
     staff_name: Annotated[str, Field(min_length=1, max_length=100)]
     items: Annotated[list[SaleItemIn], Field(min_length=1, max_length=MAX_ITEMS)]
     payment_method: Annotated[str, Field(min_length=1, max_length=50)] = "Bank Transfer"
+    # Day the sale actually happened (YYYY-MM-DD, Lagos). Empty = today. Lets a
+    # receipt written late still show the real sale date.
+    sale_date: Annotated[str, Field(max_length=10)] = ""
 
     @field_validator("customer_phone")
     @classmethod
     def phone_must_be_numeric_ish(cls, v: str) -> str:
         return _clean_phone(v)
+
+    @field_validator("sale_date")
+    @classmethod
+    def sale_date_valid(cls, v: str) -> str:
+        return validate_past_date(v).isoformat() if v else v
+
+
+class UpdateSaleDateRequest(_Input):
+    """Correct the date of a sale that was recorded on the wrong day."""
+
+    sale_date: Annotated[str, Field(min_length=10, max_length=10)]
+
+    @field_validator("sale_date")
+    @classmethod
+    def sale_date_valid(cls, v: str) -> str:
+        return validate_past_date(v).isoformat()
 
 
 class SaleOut(BaseModel):
@@ -153,6 +172,7 @@ class SaleOut(BaseModel):
     items: list[SaleItemOut]
     subtotal: float
     created_at: datetime
+    recorded_at: datetime | None = None
 
 
 class SaleListItem(BaseModel):
@@ -208,14 +228,7 @@ class CreatePurchaseRequest(_Input):
     @field_validator("purchase_date")
     @classmethod
     def purchase_date_valid(cls, v: str) -> str:
-        if not v:
-            return v
-        day = parse_date(v)
-        if day is None:
-            raise ValueError("must be a date in YYYY-MM-DD format")
-        if day > lagos_today():
-            raise ValueError("cannot be in the future")
-        return day.isoformat()
+        return validate_past_date(v).isoformat() if v else v
 
 
 class PurchaseSoldInfo(BaseModel):

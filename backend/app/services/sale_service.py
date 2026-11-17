@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.models import SaleDocument, SaleItemDocument
+from app.models import PURCHASES_COLLECTION, SaleDocument, SaleItemDocument
 from app.schemas import (
     CreateSaleRequest,
     CreateSaleResponse,
@@ -16,6 +17,7 @@ from app.schemas import (
     SaleListPage,
     SaleOut,
     SwapDevice,
+    UpdateSaleDateRequest,
 )
 from app.services.purchase_service import link_sale_to_purchases
 from app.services.receipt_generator import (
@@ -25,7 +27,10 @@ from app.services.receipt_generator import (
     generate_receipt,
 )
 from app.utils import (
+    LAGOS_TZ,
     date_range_filter,
+    moment_on_day,
+    parse_date,
     generate_unique_number,
     search_regex,
     today_str,
@@ -64,6 +69,7 @@ def _doc_to_sale_out(doc: SaleDocument) -> SaleOut:
         ],
         subtotal=doc.subtotal,
         created_at=doc.created_at,
+        recorded_at=doc.recorded_at,
     )
 
 
@@ -89,9 +95,15 @@ async def create_sale(
     async def _invoice_taken(number: str) -> bool:
         return await collection.count_documents({"invoice_number": number}, limit=1) > 0
 
+    # A sale can be dated to an earlier day when the receipt is written late;
+    # the receipt shows invoice_date, so it carries the real sale date.
+    sale_day = parse_date(payload.sale_date)
+    now = moment_on_day(sale_day) if sale_day else None
     doc = SaleDocument(
         invoice_number=await generate_unique_number("NTW", _invoice_taken),
-        invoice_date=today_str(),
+        invoice_date=sale_day.strftime("%d/%m/%Y") if sale_day else today_str(),
+        created_at=now,
+        recorded_at=datetime.now(tz=timezone.utc),
         customer_name=payload.customer_name.upper(),
         customer_phone=payload.customer_phone,
         staff_name=payload.staff_name,
@@ -110,6 +122,52 @@ async def create_sale(
 
     sale_out: SaleOut = _doc_to_sale_out(doc)
     return CreateSaleResponse(message="Sale created successfully.", sale=sale_out)
+
+
+async def update_sale_date(
+    db: AsyncIOMotorDatabase,  # type: ignore[type-arg]
+    sale_id: str,
+    payload: UpdateSaleDateRequest,
+) -> SaleOut | None:
+    """Move a sale (and the date on its receipt) to the day it really happened."""
+    if not ObjectId.is_valid(sale_id):
+        return None
+    collection = db[SaleDocument.COLLECTION]
+    raw: dict[str, Any] | None = await collection.find_one({"_id": ObjectId(sale_id)})
+    if raw is None:
+        return None
+
+    day = parse_date(payload.sale_date)
+    assert day is not None  # validated by the schema
+    old: Any = raw["created_at"]
+    # Keep the original time of day, just move it to the new date.
+    old_local = old.astimezone(LAGOS_TZ) if old.tzinfo else old
+    new_created = (
+        old_local.replace(year=day.year, month=day.month, day=day.day).astimezone(timezone.utc)
+        if old.tzinfo
+        else moment_on_day(day)
+    )
+    update = {
+        "invoice_date": day.strftime("%d/%m/%Y"),
+        "created_at": new_created,
+        # Remember when it was really entered, for an honest audit trail.
+        "recorded_at": raw.get("recorded_at") or old,
+    }
+    await collection.update_one({"_id": raw["_id"]}, {"$set": update})
+
+    # Keep the sold date shown on linked purchases in step.
+    try:
+        async for p in db[PURCHASES_COLLECTION].find({"items.sold.sale_id": sale_id}):
+            items = p["items"]
+            for item in items:
+                if item.get("sold") and item["sold"].get("sale_id") == sale_id:
+                    item["sold"]["sold_at"] = new_created
+            await db[PURCHASES_COLLECTION].update_one({"_id": p["_id"]}, {"$set": {"items": items}})
+    except Exception:  # noqa: BLE001
+        logger.exception("Could not update purchase links for sale %s", sale_id)
+
+    raw.update(update)
+    return _doc_to_sale_out(SaleDocument.from_dict(raw))
 
 
 async def get_sale_by_id(

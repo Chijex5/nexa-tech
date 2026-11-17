@@ -30,6 +30,8 @@ export interface CreateSaleRequest {
   customer_phone: string;
   staff_name: string;
   payment_method: string;
+  /** YYYY-MM-DD; empty or omitted = today. */
+  sale_date?: string;
   items: SaleItemIn[];
 }
 
@@ -44,6 +46,8 @@ export interface SaleOut {
   items: SaleItemOut[];
   subtotal: number;
   created_at: string;
+  /** When the sale was actually entered (differs if it was back-dated). */
+  recorded_at?: string | null;
 }
 
 export interface SaleListItem {

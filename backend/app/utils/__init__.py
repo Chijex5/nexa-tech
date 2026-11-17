@@ -73,6 +73,30 @@ def search_regex(q: str) -> re.Pattern[str]:
     return re.compile(body, re.IGNORECASE)
 
 
+def moment_on_day(day: datetime.date) -> datetime.datetime:
+    """A UTC timestamp on ``day`` (Lagos) at the current time of day.
+
+    Used when a sale is dated to an earlier day: it keeps ordering within the
+    day sensible while putting the sale on the right date.
+    """
+    now = datetime.datetime.now(tz=LAGOS_TZ)
+    if day == now.date():
+        return now.astimezone(datetime.timezone.utc)
+    return datetime.datetime.combine(day, now.timetz()).astimezone(datetime.timezone.utc)
+
+
+def validate_past_date(value: str) -> datetime.date:
+    """Parse YYYY-MM-DD and make sure it isn't in the future or absurdly old."""
+    day = parse_date(value)
+    if day is None:
+        raise ValueError("must be a date in YYYY-MM-DD format")
+    if day > lagos_today():
+        raise ValueError("cannot be in the future")
+    if day.year < 2000:
+        raise ValueError("is too far in the past")
+    return day
+
+
 def parse_date(value: str | None) -> datetime.date | None:
     if not value:
         return None

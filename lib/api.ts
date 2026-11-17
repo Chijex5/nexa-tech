@@ -96,6 +96,15 @@ export async function getSale(id: string): Promise<SaleOut> {
   return request<SaleOut>(`/sales/${encodeURIComponent(id)}`);
 }
 
+/** Change a sale's date (and the date printed on its receipt). */
+export async function updateSaleDate(id: string, saleDate: string): Promise<SaleOut> {
+  return request<SaleOut>(`/sales/${encodeURIComponent(id)}/date`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sale_date: saleDate }),
+  });
+}
+
 export async function getSalePurchases(id: string): Promise<PurchaseOut[]> {
   return request<PurchaseOut[]>(`/sales/${encodeURIComponent(id)}/purchases`);
 }
